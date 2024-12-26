@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "674844208239",
+    "project_id": "battleshipkotlin",
+    "storage_bucket": "battleshipkotlin.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:674844208239:android:2af10b69effd1615b2319a",
+        "android_client_info": {
+          "package_name": "com.example.battleshipkotlin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBV1IZMWwEU5m65U7QEfGgYFZ9sbLM5CHM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
