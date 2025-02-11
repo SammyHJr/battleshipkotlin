@@ -118,3 +118,15 @@ fun NewPlayerScreen(navController: NavController, model: GameModel) {
         Text("Loading...")
     }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LobbyScreen(navController: NavController, model: GameModel) {
+    val player by model.playerMap.asStateFlow().collectAsStateWithLifecycle()
+    val games by model.gameMap.asStateFlow().collectAsStateWithLifecycle()
+
+    LaunchedEffect(games) {
+
+    }
+
+}
