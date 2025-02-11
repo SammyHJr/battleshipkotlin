@@ -17,6 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusModifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
@@ -49,15 +50,71 @@ fun BattleShip(){
 }
 
 @Composable
-fun NewPlayerScreen(navController: NavController, model: GameModel){
-    val sharedPreference = LocalContext.current.getSharedPreferences("BattleShipPrefrences", Context.MODE_PRIVATE)
+fun NewPlayerScreen(navController: NavController, model: GameModel) {
+    val sharedPreference =
+        LocalContext.current.getSharedPreferences("BattleShipPrefrences", Context.MODE_PRIVATE)
 
-    LaunchedEffect(Unit){
+    LaunchedEffect(Unit) {
         model.localPlayerId.value = sharedPreference.getString("playerId", null)
-        if(model.localPlayerId.value != null){
+        if (model.localPlayerId.value != null) {
             navController.navigate("lobby")
         }
     }
 
+    if (model.localPlayerId.value == null) {
+        var playerName by remember { mutableStateOf("") }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("Welcome to BattleShip")
 
+            Spacer(
+                modifier = Modifier
+                    .height(16.dp)
+            )
+
+            OutlinedTextField(
+                value = playerName,
+                onValueChange = { playerName = it },
+                label = { Text("Enter Your Name") },
+                modifier = Modifier.fillMaxSize()
+            )
+
+            Spacer(
+                modifier = Modifier
+                    .height(16.dp)
+            )
+
+            Button(
+                onClick = {
+                    if (playerName.isNotBlank()) {
+                        var newPlayer = Player(name = playerName)
+
+                        model.db.collection("players")
+                            .add(newPlayer)
+                            .addOnSuccessListener { documentRef ->
+                                val newPlayerId = documentRef.id
+
+                                sharedPreference.edit().putString("playerId", newPlayerId).apply()
+
+                                model.localPlayerId.value = newPlayerId
+                                navController.navigate("Lobby")
+                            }
+                            .addOnFailureListener { error ->
+                                Log.e("BattleShipError", "Error creating player: ${error.message}")
+                            }
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+                    ) {
+                Text("Create Player")
+                }
+        }
+    } else {
+        Text("Loading...")
+    }
 }

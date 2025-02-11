@@ -108,7 +108,5 @@ class GameModel: ViewModel(){
                 }
             }
         }
-
-
     }
 }
