@@ -126,7 +126,74 @@ fun LobbyScreen(navController: NavController, model: GameModel) {
     val games by model.gameMap.asStateFlow().collectAsStateWithLifecycle()
 
     LaunchedEffect(games) {
+        games.forEach {( gameId, game) ->
+            if((game.playerId1 == model.localPlayerId.value || game.playerId2 ==model.localPlayerId.value )
+                && (game.gameState == "player 1 turn" || game.gameState == "player 2 turn")) {
+                navController.navigate("game/${gameId}")
+            }
+        }
+    }
 
+    var playerName = "Unknown?"
+    player[model.localPlayerId.value]?.let {
+        playerName = it.name
+    }
+
+    Scaffold(
+        topBar = { TopAppBar(title = { Text("BattleShip - $playerName")}) }
+    ){
+       innerPadding ->
+        LazyColumn (modifier = Modifier
+            .padding(innerPadding)) {
+            items(player.entries.toList()) {
+                (documentId, player) ->
+                if(documentId != model.localPlayerId.value) {
+                    ListItem(
+                        headlineContent = {
+                            Text("player Name: ${player.name}")
+                        },
+                        supportingContent = {
+                            Text("Status...")
+                        },
+                        trailingContent = {
+                            var hasGame = false
+                            games.forEach { (gameId, game) ->
+                                if(game.playerId1 == model.localPlayerId.value && game.gameState == "invite") {
+                                    Text("Waiting for player2 to accept the challenge...")
+                                    hasGame = true
+                                } else if (game.playerId2 == model.localPlayerId.value && game.gameState == "invite") {
+                                    Button( onClick = {
+                                        model.db.collection("games").document(gameId).update("gameState", "player1 turn").addOnSuccessListener {
+                                            navController.navigate("games/${gameId}")
+                                        }
+                                            .addOnFailureListener {
+                                                Log.e(
+                                                    "BattleShipError", "Error updating game: $gameId"
+                                                )
+                                            }
+                                    } ) {
+                                        Text("Accept invite")
+                                    }
+                                    hasGame = true
+                                }
+                            }
+                            if(!hasGame) {
+                                Button( onClick = {
+                                    model.db.collection("games").add(Game(gameState = "invite",
+                                        playerId1 = model.localPlayerId.value!!,
+                                        player2Id = documentId))
+                                        .addOnSuccessListener { documentRef ->
+                                            //TODO NAVIGATE
+                                        }
+                                }) {
+                                    Text("Challange")
+                                }
+                            }
+                        }
+                    )
+                }
+            }
+        }
     }
 
 }
