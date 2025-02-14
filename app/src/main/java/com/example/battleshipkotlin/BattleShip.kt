@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.materialIcon
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -44,7 +45,7 @@ fun BattleShip(){
         composable("lobby") { LobbyScreen(navController, model) }
         composable("game/{gameId}") { navBackStackEntry ->
             val gameId = navBackStackEntry.arguments?.getString("gameId")
-            gameScreen(navController, model, gameId)
+            GameScreen(navController, model, gameId)
         }
     }
 }
@@ -200,7 +201,7 @@ fun LobbyScreen(navController: NavController, model: GameModel) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GameScreen(navController: NavController, model: GameModel, gameId: String?){
+fun GameScreen(navController: NavController, model: GameModel, gameId: String?) {
     val players by model.playerMap.asStateFlow().collectAsStateWithLifecycle()
     val games by model.gameMap.asStateFlow().collectAsStateWithLifecycle()
 
@@ -209,26 +210,98 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?){
         playerName = it.name
     }
 
-    if(gameId != null && games.containsKey(gameId)) {
+    if (gameId != null && games.containsKey(gameId)) {
         val game = games[gameId]!!
         Scaffold(
-            topBar = { TopAppBar(title = { Text("BattleShip - $playerName")}) }
-        ) {
-            innerPadding ->
-            Column (verticalArrangement = Arrangement.Center,
-                horizontalAlignment =  Alignment.CenterHorizontally,
-                modifier = Modifier.padding(innerPadding). fillMaxSize()
+            topBar = { TopAppBar(title = { Text("BattleShip - $playerName") }) }
+        ) { innerPadding ->
+            Column(
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize()
             ) {
                 when (game.gameState) {
-                    "Player 1 sank all BATTLESHIPS", "Player 2 sank all BattleShips" -> {
+                    "Player 1 sank all BATTLESHIPS", "Player 2 sank all BATTLESHIPS" -> {
                         Text("Game over!", style = MaterialTheme.typography.headlineMedium)
-                        Spacer(modifier = Modifier
-                            .padding(20.dp))
+                        Spacer(
+                            modifier = Modifier
+                                .padding(20.dp)
+                        )
 
+                        if (game.gameState == "Player 1 sank all BATTLESHIP") {
+                            Text(
+                                "Player 1 WON", style = MaterialTheme.typography.headlineMedium
+                            )
+                        } else {
+                            Text(
+                                "Player 2 WON", style = MaterialTheme.typography.headlineMedium
+                            )
+                        }
+                        Button(onClick = {
+                            navController.navigate("lobby")
+                        }) {
+                            Text("Back to the Lobby")
+                        }
+                    }
 
+                    else -> {
+                        val myTurn =
+                            game.gameState == "player 1 turn" && game.playerId1 == model.localPlayerId.value ||
+                                    game.gameState == "player 2 turn" && game.playerId2 == model.localPlayerId.value
+                        val turn = if (myTurn) "Your Turn" else "Wait for other players turn"
+                        Text(turn, style = MaterialTheme.typography.headlineMedium)
+                        Spacer(modifier = Modifier.padding(20.dp))
+
+                        Text("Player1: ${players[game.playerId1]!!.name}")
+                        Text("Player2: ${players[game.playerId2]!!.name}")
+                        Text("State: ${game.gameState}")
+                        Text("GameId: ${gameId}")
+
+                    }
+                }
+                Spacer(
+                    modifier = Modifier
+                        .padding(20.dp)
+                )
+
+                for (i in 0..<rows) {
+                    Row {
+                        for (j in 0..<cols)
+                            Button(modifier = Modifier
+                                .size(100.dp)
+                                .padding(20.dp),
+                                shape = RectangleShape,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.LightGray),
+                                onClick = {
+                                    model.checkGameState(gameId, i * cols + j)
+                                }
+                            ) {
+                                if (game.gameBoard[i * cols + j] == 1) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.outline_cross_24),
+                                        tint = Color.Red,
+                                        contentDescription = "X",
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                } else if (game.gameBoard[i * cols + j] == 2) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.outline_circle_24),
+                                        tint = Color.Blue,
+                                        contentDescription = "O",
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                } else {
+                                    Text("")
+                                }
+                            }
                     }
                 }
             }
         }
+    } else {
+        Log.e("BattleShipError", "Error Game not found: $gameId")
+        navController.navigate("lobby")
     }
-}
+}<
