@@ -181,7 +181,7 @@ fun LobbyScreen(navController: NavController, model: GameModel) {
                                 Button( onClick = {
                                     model.db.collection("games").add(Game(gameState = "invite",
                                         playerId1 = model.localPlayerId.value!!,
-                                        player2Id = documentId))
+                                        playerId2 = documentId))
                                         .addOnSuccessListener { documentRef ->
                                             //TODO NAVIGATE
                                         }
@@ -196,4 +196,39 @@ fun LobbyScreen(navController: NavController, model: GameModel) {
         }
     }
 
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun GameScreen(navController: NavController, model: GameModel, gameId: String?){
+    val players by model.playerMap.asStateFlow().collectAsStateWithLifecycle()
+    val games by model.gameMap.asStateFlow().collectAsStateWithLifecycle()
+
+    var playerName = "Unknown??"
+    players[model.localPlayerId.value]?.let {
+        playerName = it.name
+    }
+
+    if(gameId != null && games.containsKey(gameId)) {
+        val game = games[gameId]!!
+        Scaffold(
+            topBar = { TopAppBar(title = { Text("BattleShip - $playerName")}) }
+        ) {
+            innerPadding ->
+            Column (verticalArrangement = Arrangement.Center,
+                horizontalAlignment =  Alignment.CenterHorizontally,
+                modifier = Modifier.padding(innerPadding). fillMaxSize()
+            ) {
+                when (game.gameState) {
+                    "Player 1 sank all BATTLESHIPS", "Player 2 sank all BattleShips" -> {
+                        Text("Game over!", style = MaterialTheme.typography.headlineMedium)
+                        Spacer(modifier = Modifier
+                            .padding(20.dp))
+
+
+                    }
+                }
+            }
+        }
+    }
 }
