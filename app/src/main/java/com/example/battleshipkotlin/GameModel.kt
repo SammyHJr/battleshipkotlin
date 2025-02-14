@@ -58,14 +58,18 @@ class GameModel: ViewModel(){
                 }
             }
 
-        fun checkWinner(game: Game): Boolean {
-            for (cell in game.gameBoard) {
-                if (cell == 1) {
-                    return false // There is at least one unhit ship
-                }
+        fun checkWinner(game: Game): Int? {
+            val list = game.gameBoard
+            val player1ShipsLeft = list.count { it == 1 } // Remaining ships for Player 1
+            val player2ShipsLeft = list.count { it == 2 } // Remaining ships for Player 2 (if using a single board)
+
+            return when {
+                player1ShipsLeft == 0 -> 2  // Player 2 wins
+                player2ShipsLeft == 0 -> 1  // Player 1 wins
+                else -> null  // No winner yet
             }
-            return true // No unhit ships left
         }
+
 
         fun checkGameState(gameId: String?, cell: Int) {
             if (gameId != null) {

@@ -304,4 +304,4 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
         Log.e("BattleShipError", "Error Game not found: $gameId")
         navController.navigate("lobby")
     }
-}<
+}
