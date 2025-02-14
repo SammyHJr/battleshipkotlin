@@ -268,36 +268,41 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
 
                 for (i in 0..<rows) {
                     Row {
-                        for (j in 0..<cols)
-                            Button(modifier = Modifier
-                                .size(100.dp)
-                                .padding(20.dp),
+                        for (j in 0..<cols) {
+                            val index = i * cols + j
+                            val cellValue = model.gameBoard[index]
+
+                            val color = when (cellValue) {
+                                'S' -> Color.Blue  // Ship (not hit yet)
+                                'H'.code -> Color.Red // Hit ship
+                                'M'.code -> Color.Gray // Miss
+                                else -> Color.LightGray // Water
+                            }
+
+                            Button(
+                                modifier = Modifier
+                                    .size(50.dp)
+                                    .padding(4.dp),
                                 shape = RectangleShape,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color.LightGray),
+                                colors = ButtonDefaults.buttonColors(containerColor = color),
                                 onClick = {
-                                    model.checkGameState(gameId, i * cols + j)
+                                    model.checkGameState(gameId, index)
                                 }
                             ) {
-                                if (game.gameBoard[i * cols + j] == 1) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.outline_cross_24),
-                                        tint = Color.Red,
-                                        contentDescription = "X",
-                                        modifier = Modifier.size(48.dp)
-                                    )
-                                } else if (game.gameBoard[i * cols + j] == 2) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.outline_circle_24),
-                                        tint = Color.Blue,
-                                        contentDescription = "O",
-                                        modifier = Modifier.size(48.dp)
-                                    )
-                                } else {
-                                    Text("")
-                                }
+                                Text(
+                                    text = when (cellValue) {
+                                        'S'.code -> "S"
+                                        'H'.code -> "H"
+                                        'M'.code -> "M"
+                                        else -> ""
+                                    },
+                                    color = Color.White
+                                )
                             }
+                        }
                     }
                 }
+
             }
         }
     } else {

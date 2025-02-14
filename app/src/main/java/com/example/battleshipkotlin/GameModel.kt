@@ -76,34 +76,31 @@ class GameModel: ViewModel(){
                 val game: Game? = gameMap.value[gameId]
                 if (game != null) {
 
-                    val myTurn = game.gameState == "player1_turn" && game.playerId1 == localPlayerId.value ||
-                            game.gameState == "player2_turn" && game.playerId2 == localPlayerId.value
+                    val myTurn = (game.gameState == "player1_turn" && game.playerId1 == localPlayerId.value) ||
+                            (game.gameState == "player2_turn" && game.playerId2 == localPlayerId.value)
                     if (!myTurn) return
 
                     val list: MutableList<Int> = game.gameBoard.toMutableList()
 
-                    // Mark the cell as "hit" (2) if it's a ship (1)
-                    if (list[cell] == 1 || list[cell] == 2) {
-                        list[cell] = 2  // If it's a ship, mark it as hit
-                    } else {
-                        // Invalid move (cell is water or already hit)
-                        return
+                    // Check what is currently in the cell
+                    when (list[cell]) {
+                        1 -> list[cell] = 'H'.code // Ship hit (H)
+                        0 -> list[cell] = 'M'.code // Missed shot (M)
+                        'H'.code, 'M'.code -> return // Ignore already hit/missed cells
                     }
 
-                    // Determine the next turn
+                    // Determine next turn
                     var turn = if (game.gameState == "player1_turn") "player2_turn" else "player1_turn"
 
-                    // Check if there's a winner by calling checkWinner
+                    // Check if there is a winner
                     val winner = checkWinner(game)
                     if (winner == 1) {
                         turn = "player1_won"
                     } else if (winner == 2) {
                         turn = "player2_won"
-                    } else if (list.none { it == 1 }) { // No ships left for either player
-                        turn = "draw"
                     }
 
-                    // Update the game state in Firebase
+                    // Update Firebase with the new board state and turn
                     db.collection("games").document(gameId)
                         .update(
                             "gameBoard", list,
@@ -112,5 +109,17 @@ class GameModel: ViewModel(){
                 }
             }
         }
+
+        fun createEmptyGameBoard(): MutableList<Char> {
+            return MutableList(rows * cols) { 'W' } // 10x10 board filled with 'W' (Water)
+        }
+
+        // Function to place ships on the board (if needed later)
+        fun placeShips(board: MutableList<Char>): MutableList<Char> {
+            // Simply return the board with only water ('W') and no ships placed
+            return board.map { 'W' }.toMutableList()
+        }
+
+
     }
 }
