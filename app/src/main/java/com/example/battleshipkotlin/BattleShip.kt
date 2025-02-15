@@ -210,6 +210,44 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
     val players by model.playerMap.asStateFlow().collectAsStateWithLifecycle()
     val games by model.gameMap.asStateFlow().collectAsStateWithLifecycle()
 
+    var playerGameBoard by remember { mutableStateOf(MutableList(100) { 'W' }) }  // Player's board
+    var opponentGameBoard by remember { mutableStateOf(MutableList(100) { 'W' }) } // Opponent's board
+
+    Scaffold(
+        topBar = { TopAppBar(title = { Text("BattleShip") }) }
+    ) { innerPadding ->
+        Column(
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(innerPadding)
+        ) {
+            Text("Your Board", style = MaterialTheme.typography.headlineMedium)
+            GameBoardGrid(gameBoard = playerGameBoard.toList(), isOpponentBoard = false) { index ->
+                // Handle attacks on opponent's board
+                playerGameBoard = playerGameBoard.toMutableList().also {
+                    if (it[index] == 'W') it[index] = 'M' // Miss
+                    else if (it[index] == 'S') it[index] = 'H' // Hit
+                }
+            } // ✅ FIX: Convert to immutable list
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Text("Opponent's Board", style = MaterialTheme.typography.headlineMedium)
+            GameBoardGrid(
+                gameBoard = opponentGameBoard.toList(), // ✅ FIX: Convert to immutable list
+                isOpponentBoard = true
+            ) { index ->
+                // Handle attacks on opponent's board
+                opponentGameBoard = opponentGameBoard.toMutableList().also {
+                    if (it[index] == 'W') it[index] = 'M' // Miss
+                    else if (it[index] == 'S') it[index] = 'H' // Hit
+                }
+            }
+        }
+    }
+
+
+
     var playerName = "Unknown??"
     players[model.localPlayerId.value]?.let {
         playerName = it.name
@@ -270,29 +308,6 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
                     modifier = Modifier
                         .padding(20.dp)
                 )
-
-                LazyColumn {
-                    items(10) { row ->
-                        Row(
-                            horizontalArrangement = Arrangement.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            repeat(10) { col ->
-                                Text(
-                                    text = "W",
-                                    modifier = Modifier
-                                        .size(30.dp)
-                                        .padding(2.dp)
-                                        .border(1.dp, Color.Black)
-                                        .background(Color.LightGray),
-                                    textAlign = TextAlign.Center,
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-                }
             }
         }
     } else {
@@ -301,3 +316,45 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
     }
 
 }
+
+
+@Composable
+fun GameBoardGrid(
+    gameBoard: List<Char>,
+    isOpponentBoard: Boolean = false,
+    onCellClick: (Int) -> Unit
+) {
+    Column {
+        for (row in 0 until 10) {
+            Row {
+                for (col in 0 until 10) {
+                    val index = row * 10 + col
+                    Button(
+                        modifier = Modifier
+                            .size(30.dp)
+                            .padding(2.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = when (gameBoard[index]) {
+                                'W' -> Color.Blue   // Water
+                                'S' -> Color.Gray   // Ship (only visible to the player)
+                                'H' -> Color.Red    // Hit
+                                else -> Color.LightGray
+                            }
+                        ),
+                        onClick = {
+                            if (isOpponentBoard) {
+                                onCellClick(index) // Allow attacks on the opponent's board
+                            }
+                        }
+                    ) {
+                        Text(
+                            text = if (isOpponentBoard && gameBoard[index] == 'S') "W" else gameBoard[index].toString(),
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
