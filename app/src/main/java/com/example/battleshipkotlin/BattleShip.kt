@@ -204,6 +204,8 @@ fun LobbyScreen(navController: NavController, model: GameModel) {
 
 }
 
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GameScreen(navController: NavController, model: GameModel, gameId: String?) {
@@ -212,6 +214,37 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
 
     var playerGameBoard by remember { mutableStateOf(MutableList(100) { 'W' }) }  // Player's board
     var opponentGameBoard by remember { mutableStateOf(MutableList(100) { 'W' }) } // Opponent's board
+    var shipsToPlace by remember { mutableStateOf(listOf(5, 4, 3, 3, 2)) } // List of ships to place (sizes)
+    var currentShipSize by remember { mutableStateOf(shipsToPlace.firstOrNull() ?: 0) } // Current ship being placed
+    var placingShip by remember { mutableStateOf(false) } // Flag to track if the player is placing a ship
+
+    val shipNames = mapOf(
+        4 to "Carrier",
+        3 to "Battleship",
+        2 to "Cruiser",
+        2 to "Submarine1",
+        2 to "Submarine2",
+        1 to "Destroyer1",
+        1 to "Destroyer2"
+    )
+
+    fun placeShipAt(index: Int) {
+        if (currentShipSize == 0 || playerGameBoard[index] != 'W') return // No ship to place or cell already filled
+
+        // Place the ship ('S') in the selected cell
+        playerGameBoard = playerGameBoard.toMutableList().apply {
+            this[index] = 'S'
+        }
+
+        // Decrease the size of the remaining ship to place
+        if (currentShipSize > 1) {
+            currentShipSize -= 1
+        } else {
+            // Move to the next ship to place if the current ship is placed
+            shipsToPlace = shipsToPlace.drop(1)
+            currentShipSize = shipsToPlace.firstOrNull() ?: 0
+        }
+    }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("BattleShip") }) }
@@ -317,7 +350,7 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
 
 }
 
-
+//creates the gameBoard
 @Composable
 fun GameBoardGrid(
     gameBoard: List<Char>,
