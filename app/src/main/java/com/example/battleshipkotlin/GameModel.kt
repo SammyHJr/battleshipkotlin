@@ -110,16 +110,5 @@ class GameModel: ViewModel(){
             }
         }
 
-        fun createEmptyGameBoard(): MutableList<Char> {
-            return MutableList(rows * cols) { 'W' } // 10x10 board filled with 'W' (Water)
-        }
-
-        // Function to place ships on the board (if needed later)
-        fun placeShips(board: MutableList<Char>): MutableList<Char> {
-            // Simply return the board with only water ('W') and no ships placed
-            return board.map { 'W' }.toMutableList()
-        }
-
-
     }
 }

@@ -3,6 +3,8 @@ package com.example.battleshipkotlin
 import android.content.Context
 import android.util.Log
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,7 +26,10 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
@@ -258,55 +263,41 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
                         Text("Player2: ${players[game.playerId2]!!.name}")
                         Text("State: ${game.gameState}")
                         Text("GameId: ${gameId}")
-
                     }
                 }
+
                 Spacer(
                     modifier = Modifier
                         .padding(20.dp)
                 )
 
-                for (i in 0..<rows) {
-                    Row {
-                        for (j in 0..<cols) {
-                            val index = i * cols + j
-                            val cellValue = model.gameBoard[index]
-
-                            val color = when (cellValue) {
-                                'S' -> Color.Blue  // Ship (not hit yet)
-                                'H'.code -> Color.Red // Hit ship
-                                'M'.code -> Color.Gray // Miss
-                                else -> Color.LightGray // Water
-                            }
-
-                            Button(
-                                modifier = Modifier
-                                    .size(50.dp)
-                                    .padding(4.dp),
-                                shape = RectangleShape,
-                                colors = ButtonDefaults.buttonColors(containerColor = color),
-                                onClick = {
-                                    model.checkGameState(gameId, index)
-                                }
-                            ) {
+                LazyColumn {
+                    items(10) { row ->
+                        Row(
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            repeat(10) { col ->
                                 Text(
-                                    text = when (cellValue) {
-                                        'S'.code -> "S"
-                                        'H'.code -> "H"
-                                        'M'.code -> "M"
-                                        else -> ""
-                                    },
-                                    color = Color.White
+                                    text = "W",
+                                    modifier = Modifier
+                                        .size(30.dp)
+                                        .padding(2.dp)
+                                        .border(1.dp, Color.Black)
+                                        .background(Color.LightGray),
+                                    textAlign = TextAlign.Center,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
                         }
                     }
                 }
-
             }
         }
     } else {
         Log.e("BattleShipError", "Error Game not found: $gameId")
         navController.navigate("lobby")
     }
+
 }
