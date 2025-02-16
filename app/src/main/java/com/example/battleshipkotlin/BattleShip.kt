@@ -113,7 +113,7 @@ fun NewPlayerScreen(navController: NavController, model: GameModel) {
                                 Log.i("BattleShipInfo", "Navigating to lobby with ID: ${model.localPlayerId.value}")
 
 
-                                model.localPlayerId.value = newPlayerId                                Log.i("BattleShipInfo", "Player created successfully with ID: $newPlayerId")
+                                model.localPlayerId.value = newPlayerId
                                 Log.i("BattleShipInfo", "Player created successfully with ID: $newPlayerId")
                                 navController.navigate("Lobby")
                             }
