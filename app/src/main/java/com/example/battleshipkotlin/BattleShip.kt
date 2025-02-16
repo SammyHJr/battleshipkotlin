@@ -35,6 +35,7 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -65,6 +66,7 @@ fun NewPlayerScreen(navController: NavController, model: GameModel) {
     LaunchedEffect(Unit) {
         model.localPlayerId.value = sharedPreference.getString("playerId", null)
         if (model.localPlayerId.value != null) {
+            updatePlayerStatus(model.localPlayerId.value!!, "online") // Set status to online
             navController.navigate("lobby")
         }
     }
@@ -133,6 +135,7 @@ fun NewPlayerScreen(navController: NavController, model: GameModel) {
     } else {
         Text("Loading...")
     }
+
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -402,3 +405,14 @@ fun GameBoardGrid(
     }
 }
 
+fun updatePlayerStatus(playerId: String, status: String) {
+    val db = FirebaseFirestore.getInstance()
+    db.collection("players").document(playerId)
+        .update("status", status)
+        .addOnSuccessListener {
+            Log.i("BattleShipInfo", "Player $playerId status updated to $status")
+        }
+        .addOnFailureListener { error ->
+            Log.e("BattleShipError", "Failed to update status: ${error.message}")
+        }
+}
