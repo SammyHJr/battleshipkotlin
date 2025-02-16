@@ -204,6 +204,7 @@ fun LobbyScreen(navController: NavController, model: GameModel) {
                                         playerId2 = documentId))
                                         .addOnSuccessListener { documentRef ->
                                             //TODO NAVIGATE
+                                            navController.navigate("game/${documentRef.id}")
                                         }
                                 }) {
                                     Text("Challange")
