@@ -44,7 +44,7 @@ fun BattleShip(){
     val navController = rememberNavController()
     val model = GameModel()
     model.initGame()
-
+    Log.i("BattleShipInfo", "In battleship()")
     NavHost(navController = navController, startDestination = "Player"){
         composable("player") {NewPlayerScreen(navController, model)}
         composable("lobby") { LobbyScreen(navController, model) }
@@ -59,6 +59,8 @@ fun BattleShip(){
 fun NewPlayerScreen(navController: NavController, model: GameModel) {
     val sharedPreference =
         LocalContext.current.getSharedPreferences("BattleShipPrefrences", Context.MODE_PRIVATE)
+    Log.i("BattleShipInfo", "New playerScreen")
+
 
     LaunchedEffect(Unit) {
         model.localPlayerId.value = sharedPreference.getString("playerId", null)
@@ -76,23 +78,25 @@ fun NewPlayerScreen(navController: NavController, model: GameModel) {
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Welcome to BattleShip")
+            Text("Welcome to BattleShip", fontSize = 36.sp, fontWeight = FontWeight.Bold)
 
             Spacer(
                 modifier = Modifier
-                    .height(16.dp)
+                    .height(75.dp)
             )
 
             OutlinedTextField(
                 value = playerName,
                 onValueChange = { playerName = it },
-                label = { Text("Enter Your Name") },
-                modifier = Modifier.fillMaxSize()
+                label = { Text("Enter Your Name...") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(75.dp)
             )
 
             Spacer(
                 modifier = Modifier
-                    .height(16.dp)
+                    .height(50.dp)
             )
 
             Button(
@@ -106,8 +110,11 @@ fun NewPlayerScreen(navController: NavController, model: GameModel) {
                                 val newPlayerId = documentRef.id
 
                                 sharedPreference.edit().putString("playerId", newPlayerId).apply()
+                                Log.i("BattleShipInfo", "Navigating to lobby with ID: ${model.localPlayerId.value}")
 
-                                model.localPlayerId.value = newPlayerId
+
+                                model.localPlayerId.value = newPlayerId                                Log.i("BattleShipInfo", "Player created successfully with ID: $newPlayerId")
+                                Log.i("BattleShipInfo", "Player created successfully with ID: $newPlayerId")
                                 navController.navigate("Lobby")
                             }
                             .addOnFailureListener { error ->
@@ -115,9 +122,12 @@ fun NewPlayerScreen(navController: NavController, model: GameModel) {
                             }
                     }
                 },
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(75.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Black)
                     ) {
-                Text("Create Player")
+                Text("Create Player", fontSize = 20.sp, color = Color.White)
                 }
         }
     } else {
@@ -130,6 +140,7 @@ fun NewPlayerScreen(navController: NavController, model: GameModel) {
 fun LobbyScreen(navController: NavController, model: GameModel) {
     val player by model.playerMap.asStateFlow().collectAsStateWithLifecycle()
     val games by model.gameMap.asStateFlow().collectAsStateWithLifecycle()
+    Log.i("BattleShipInfo", "LobbyScreen")
 
     LaunchedEffect(games) {
         games.forEach {( gameId, game) ->
