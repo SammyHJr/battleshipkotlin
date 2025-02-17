@@ -2,6 +2,7 @@ package com.example.battleshipkotlin
 
 import android.content.Context
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -58,10 +59,22 @@ fun BattleShip(){
 
 @Composable
 fun NewPlayerScreen(navController: NavController, model: GameModel) {
+
     val sharedPreference =
         LocalContext.current.getSharedPreferences("BattleShipPrefrences", Context.MODE_PRIVATE)
     Log.i("BattleShipInfo", "New playerScreen")
 
+    // ✅ Create HashMap with default values
+    val playerData = hashMapOf(
+        "name" to "",
+        "isOnline" to false
+    )
+
+    LaunchedEffect(Unit) {
+        sharedPreference.edit().remove("playerId").apply() // ✅ Force name entry on every launch
+        model.localPlayerId.value = null  // Reset local player ID
+    }
+    Log.i("BattleShipInfo", "playerID = null")
 
     LaunchedEffect(Unit) {
         model.localPlayerId.value = sharedPreference.getString("playerId", null)
@@ -101,26 +114,60 @@ fun NewPlayerScreen(navController: NavController, model: GameModel) {
                     .height(50.dp)
             )
 
+            val context = LocalContext.current
+
             Button(
                 onClick = {
                     if (playerName.isNotBlank()) {
-                        var newPlayer = Player(name = playerName)
-
                         model.db.collection("players")
-                            .add(newPlayer)
-                            .addOnSuccessListener { documentRef ->
-                                val newPlayerId = documentRef.id
+                            .whereEqualTo("name", playerName)
+                            .get()
+                            .addOnSuccessListener { querySnapshot ->
+                                if (!querySnapshot.isEmpty) {
+                                    // ✅ Player exists
+                                    val existingPlayer = querySnapshot.documents[0]
+                                    val existingPlayerId = existingPlayer.id
 
-                                sharedPreference.edit().putString("playerId", newPlayerId).apply()
-                                Log.i("BattleShipInfo", "Navigating to lobby with ID: ${model.localPlayerId.value}")
+                                    existingPlayer.reference.update("isOnline", true)
+                                        .addOnSuccessListener {
+                                            sharedPreference.edit().putString("playerId", existingPlayerId).apply()
+                                            model.localPlayerId.value = existingPlayerId
 
+                                            // ✅ Show "Welcome Back" message
+                                            Toast.makeText(context, "Welcome back, $playerName!", Toast.LENGTH_LONG).show()
 
-                                model.localPlayerId.value = newPlayerId
-                                Log.i("BattleShipInfo", "Player created successfully with ID: $newPlayerId")
-                                navController.navigate("Lobby")
+                                            navController.navigate("Lobby")
+                                        }
+                                        .addOnFailureListener { error ->
+                                            Log.e("BattleShipError", "Error updating player status: ${error.message}")
+                                        }
+                                } else {
+                                    // ✅ Player does not exist, create new
+                                    val newPlayerData = hashMapOf(
+                                        "name" to playerName,
+                                        "isOnline" to true
+                                    )
+
+                                    model.db.collection("players")
+                                        .add(newPlayerData)
+                                        .addOnSuccessListener { documentRef ->
+                                            val newPlayerId = documentRef.id
+
+                                            sharedPreference.edit().putString("playerId", newPlayerId).apply()
+                                            model.localPlayerId.value = newPlayerId
+
+                                            // ✅ Show "New Player Created" message
+                                            Toast.makeText(context, "New player created: $playerName!", Toast.LENGTH_LONG).show()
+
+                                            navController.navigate("Lobby")
+                                        }
+                                        .addOnFailureListener { error ->
+                                            Log.e("BattleShipError", "Error creating player: ${error.message}")
+                                        }
+                                }
                             }
                             .addOnFailureListener { error ->
-                                Log.e("BattleShipError", "Error creating player: ${error.message}")
+                                Log.e("BattleShipError", "Error checking for existing player: ${error.message}")
                             }
                     }
                 },
@@ -128,9 +175,9 @@ fun NewPlayerScreen(navController: NavController, model: GameModel) {
                     .fillMaxWidth()
                     .height(75.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Black)
-                    ) {
+            ) {
                 Text("Create Player", fontSize = 20.sp, color = Color.White)
-                }
+            }
         }
     } else {
         Text("Loading...")
@@ -162,11 +209,11 @@ fun LobbyScreen(navController: NavController, model: GameModel) {
     Scaffold(
         topBar = { TopAppBar(title = { Text("BattleShip - $playerName")}) }
     ){
-       innerPadding ->
+            innerPadding ->
         LazyColumn (modifier = Modifier
             .padding(innerPadding)) {
             items(player.entries.toList()) {
-                (documentId, player) ->
+                    (documentId, player) ->
                 if(documentId != model.localPlayerId.value) {
                     ListItem(
                         headlineContent = {

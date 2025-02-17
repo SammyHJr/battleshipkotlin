@@ -9,9 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.compose.runtime.*
 import com.google.firebase.firestore.toObject
 
-data class Player (
-    var name : String = ""
-)
+data class Player(val name: String)
 
 data class Game(
     var gameBoard: List<Int> = List(100) {0},
