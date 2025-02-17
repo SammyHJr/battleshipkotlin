@@ -19,10 +19,11 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             BattleshipkotlinTheme {
-                BattleShip();
-            }
+                BattleShip()
 
+            }
         }
     }
+
 }
 

@@ -176,7 +176,7 @@ fun NewPlayerScreen(navController: NavController, model: GameModel) {
                     .height(75.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Black)
             ) {
-                Text("Create Player", fontSize = 20.sp, color = Color.White)
+                Text("Login", fontSize = 20.sp, color = Color.White)
             }
         }
     } else {
@@ -201,9 +201,13 @@ fun LobbyScreen(navController: NavController, model: GameModel) {
         }
     }
 
+
     var playerName = "Unknown?"
-    player[model.localPlayerId.value]?.let {
-        playerName = it.name
+    LaunchedEffect(player) {
+        model.db.collection("playersId")
+            player.forEach{(name) ->
+                //TODO
+            }
     }
 
     Scaffold(
@@ -265,6 +269,7 @@ fun LobbyScreen(navController: NavController, model: GameModel) {
     }
 
 }
+
 
 
 
