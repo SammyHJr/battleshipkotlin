@@ -253,15 +253,27 @@ fun LobbyScreen(navController: NavController, model: GameModel) {
                             // If no active game exists, show the "Challenge" button
                             if (!hasGame) {
                                 Button(onClick = {
-                                    model.db.collection("games").add(Game(gameState = "invite",
-                                        playerId1 = model.localPlayerId.value!!,
-                                        playerId2 = player.id))
-                                        .addOnSuccessListener { documentRef ->
-                                            // Navigate to the new game
-                                            navController.navigate("game/${documentRef.id}")
+                                    model.db.collection("players")
+                                        .whereEqualTo("name", player.name) // Find the player by name
+                                        .get()
+                                        .addOnSuccessListener { querySnapshot ->
+                                            val player2Id = querySnapshot.documents.firstOrNull()?.id // Get the document ID
+                                            if (player2Id != null) {
+                                                model.db.collection("games").add(Game(
+                                                    gameState = "invite",
+                                                    playerId1 = model.localPlayerId.value!!, // The challenging player
+                                                    playerId2 = player2Id // The challenged player's ID
+                                                )).addOnSuccessListener { documentRef ->
+                                                    navController.navigate("game/${documentRef.id}") // Navigate to game screen
+                                                }.addOnFailureListener {
+                                                    Log.e("BattleShipError", "Error creating challenge")
+                                                }
+                                            } else {
+                                                Log.e("BattleShipError", "Player2 ID not found")
+                                            }
                                         }
-                                        .addOnFailureListener {
-                                            Log.e("BattleShipError", "Error creating challenge")
+                                        .addOnFailureListener { exception ->
+                                            Log.e("BattleShipError", "Error fetching Player2 ID: ${exception.message}")
                                         }
                                 }) {
                                     Text("Challenge")
