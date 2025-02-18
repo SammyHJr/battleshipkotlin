@@ -195,15 +195,64 @@ fun LobbyScreen(navController: NavController, model: GameModel) {
 
     Log.i("BattleShipInfo", "LobbyScreen")
 
-    LaunchedEffect(games) {
-        games.forEach {(gameId, game) ->
-            if((game.playerId1 == model.localPlayerId.value || game.playerId2 == model.localPlayerId.value)
-                && (game.gameState == "player 1 turn" || game.gameState == "player 2 turn")) {
-                navController.navigate("game/$gameId")
+    var showDialog by remember { mutableStateOf(false) }
+    var challengerName by remember { mutableStateOf("") }
+    var challengeGameId by remember { mutableStateOf("") }
+
+    // 👇 LISTEN FOR CHALLENGES
+    LaunchedEffect(Unit) {
+        model.db.collection("games")
+            .whereEqualTo("playerId2", model.localPlayerId.value)
+            .whereEqualTo("gameState", "invite")
+            .addSnapshotListener { snapshot, _ ->
+                snapshot?.documents?.firstOrNull()?.let { doc ->
+                    val player1Id = doc.getString("playerId1")
+                    val gameId = doc.id
+
+                    if (player1Id != null) {
+                        model.db.collection("players").document(player1Id).get()
+                            .addOnSuccessListener { playerDoc ->
+                                challengerName = playerDoc.getString("name") ?: "Unknown Player"
+                                challengeGameId = gameId
+                                showDialog = true
+                            }
+                    }
+                }
             }
-        }
     }
 
+    // 👇 SHOW CHALLENGE DIALOG IF TRIGGERED
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text("Game Challenge!") },
+            text = { Text("$challengerName has challenged you to a game!") },
+            confirmButton = {
+                Button(onClick = {
+                    model.db.collection("games").document(challengeGameId)
+                        .update("gameState", "player1 turn")
+                        .addOnSuccessListener {
+                            navController.navigate("game/${challengeGameId}")
+                        }
+                    showDialog = false
+                }) {
+                    Text("Accept")
+                }
+            },
+            dismissButton = {
+                Button(onClick = {
+                    model.db.collection("games").document(challengeGameId)
+                        .delete()
+                    navController.navigate("lobby")
+                    showDialog = false
+                }) {
+                    Text("Decline")
+
+                }
+            }
+        )
+    }
+    
     var playerName = "Unknown?"
     player[model.localPlayerId.value]?.let {
         playerName = it.name
@@ -265,6 +314,7 @@ fun LobbyScreen(navController: NavController, model: GameModel) {
                                                     playerId2 = player2Id // The challenged player's ID
                                                 )).addOnSuccessListener { documentRef ->
                                                     navController.navigate("game/${documentRef.id}") // Navigate to game screen
+
                                                 }.addOnFailureListener {
                                                     Log.e("BattleShipError", "Error creating challenge")
                                                 }
