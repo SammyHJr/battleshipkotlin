@@ -13,7 +13,8 @@ import com.google.firebase.firestore.toObject
 
 data class Player(
     val name: String = "",
-    val isOnline: Boolean = false
+    val isOnline: Boolean = false,
+    val id: String = ""
 ) {
     constructor() : this("", false)  // No-argument constructor required by Firestore
 }

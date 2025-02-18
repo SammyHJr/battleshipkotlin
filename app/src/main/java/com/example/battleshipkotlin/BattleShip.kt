@@ -185,80 +185,86 @@ fun NewPlayerScreen(navController: NavController, model: GameModel) {
 
 }
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LobbyScreen(navController: NavController, model: GameModel) {
     val player by model.playerMap.asStateFlow().collectAsStateWithLifecycle()
     val games by model.gameMap.asStateFlow().collectAsStateWithLifecycle()
+    val onlinePlayers = remember { mutableStateListOf<Player>() }
+
     Log.i("BattleShipInfo", "LobbyScreen")
 
     LaunchedEffect(games) {
-        games.forEach {( gameId, game) ->
-            if((game.playerId1 == model.localPlayerId.value || game.playerId2 ==model.localPlayerId.value )
+        games.forEach {(gameId, game) ->
+            if((game.playerId1 == model.localPlayerId.value || game.playerId2 == model.localPlayerId.value)
                 && (game.gameState == "player 1 turn" || game.gameState == "player 2 turn")) {
-                navController.navigate("game/${gameId}")
+                navController.navigate("game/$gameId")
             }
         }
     }
 
-
     var playerName = "Unknown?"
-    LaunchedEffect(player) {
-        model.db.collection("playersId")
-            player.forEach{(name) ->
-                //TODO
+    player[model.localPlayerId.value]?.let {
+        playerName = it.name
+    }
+
+    // Fetch online players from Firestore
+    LaunchedEffect(Unit) {
+        model.db.collection("players") // Firestore collection
+            .whereEqualTo("isOnline", true) // Filter for only online players
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e("BattleShipError", "Error fetching online players: ${error.message}")
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    val updatedPlayers = snapshot.documents.mapNotNull { doc ->
+                        doc.toObject(Player::class.java) // Only retrieve name and isOnline
+                    }
+                    onlinePlayers.clear()
+                    onlinePlayers.addAll(updatedPlayers)
+                    Log.i("BattleShipInfo", "Fetched ${updatedPlayers.size} online players")
+                }
             }
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("BattleShip - $playerName")}) }
-    ){
-            innerPadding ->
-        LazyColumn (modifier = Modifier
-            .padding(innerPadding)) {
-            items(player.entries.toList()) {
-                    (documentId, player) ->
-                if(documentId != model.localPlayerId.value) {
+        topBar = { TopAppBar(title = { Text("BattleShip - $playerName") }) }
+    ) { innerPadding ->
+        LazyColumn(modifier = Modifier.padding(innerPadding)) {
+            items(onlinePlayers) { player ->
+                // Only show players who are not the local player
+                if (player.id != model.localPlayerId.value) {
                     ListItem(
-                        headlineContent = {
-                            Text("player Name: ${player.name}")
-                        },
-                        supportingContent = {
-                            Text("Status...")
-                        },
+                        headlineContent = { Text("Player Name: ${player.name}") },
+                        supportingContent = { Text("Status: Online") },
                         trailingContent = {
+                            // Check if the player is already in a game with the local player
                             var hasGame = false
                             games.forEach { (gameId, game) ->
-                                if(game.playerId1 == model.localPlayerId.value && game.gameState == "invite") {
-                                    Text("Waiting for player2 to accept the challenge...")
-                                    hasGame = true
-                                } else if (game.playerId2 == model.localPlayerId.value && game.gameState == "invite") {
-                                    Button( onClick = {
-                                        model.db.collection("games").document(gameId).update("gameState", "player1 turn").addOnSuccessListener {
-                                            navController.navigate("games/${gameId}")
-                                        }
-                                            .addOnFailureListener {
-                                                Log.e(
-                                                    "BattleShipError", "Error updating game: $gameId"
-                                                )
-                                            }
-                                    } ) {
-                                        Text("Accept invite")
-                                    }
+                                if (game.playerId1 == model.localPlayerId.value && game.playerId2 == player.id) {
+                                    // Player is already part of an active game with the local player
+                                    Text("Already in a game")
                                     hasGame = true
                                 }
                             }
-                            if(!hasGame) {
-                                Button( onClick = {
+
+                            // If no active game exists, show the "Challenge" button
+                            if (!hasGame) {
+                                Button(onClick = {
                                     model.db.collection("games").add(Game(gameState = "invite",
                                         playerId1 = model.localPlayerId.value!!,
-                                        playerId2 = documentId))
+                                        playerId2 = player.id))
                                         .addOnSuccessListener { documentRef ->
-                                            //TODO NAVIGATE
+                                            // Navigate to the new game
                                             navController.navigate("game/${documentRef.id}")
                                         }
+                                        .addOnFailureListener {
+                                            Log.e("BattleShipError", "Error creating challenge")
+                                        }
                                 }) {
-                                    Text("Challange")
+                                    Text("Challenge")
                                 }
                             }
                         }
@@ -267,10 +273,7 @@ fun LobbyScreen(navController: NavController, model: GameModel) {
             }
         }
     }
-
 }
-
-
 
 
 @OptIn(ExperimentalMaterial3Api::class)
