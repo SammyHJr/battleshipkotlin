@@ -37,7 +37,9 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.google.firebase.Firebase
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -367,13 +369,61 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
     }
 
     fun takeShot(index: Int) {
-        if (opponentGameBoard[index] == 'W') {
-            opponentGameBoard[index] = 'M' // Mark as miss
-        } else if (opponentGameBoard[index] == 'S') {
-            opponentGameBoard[index] = 'H' // Mark as hit
+        if (!readyToBattle || gameId == null || model.localPlayerId.value == null) return
+
+        val game = games[gameId] ?: return
+        val currentPlayerId = model.localPlayerId.value!!
+        val isPlayer1 = game.playerId1 == currentPlayerId
+        val isPlayerTurn = (game.gameState == "player 1 turn" && isPlayer1) ||
+                (game.gameState == "player 2 turn" && !isPlayer1)
+
+        if (!isPlayerTurn) {
+            Log.w("BattleShipWarning", "Not your turn!")
+            return
         }
-        // TODO: Update the game state in Firebase
+
+        val gameRef = Firebase.firestore.collection("games").document(gameId)
+
+        Firebase.firestore.runTransaction { transaction ->
+            val gameSnapshot = transaction.get(gameRef)
+
+            // Retrieve the opponent's board from Firestore
+            val opponentBoard = gameSnapshot.get("opponentBoard") as? MutableList<Char> ?: MutableList(100) { 'W' }
+
+            if (opponentBoard[index] == 'H' || opponentBoard[index] == 'M') {
+                Log.w("BattleShipWarning", "Already shot here!")
+                return@runTransaction
+            }
+
+            // Determine hit or miss
+            if (opponentBoard[index] == 'S') {
+                opponentBoard[index] = 'H' // Hit
+            } else {
+                opponentBoard[index] = 'M' // Miss
+            }
+
+            // Check if all ships are sunk
+            val allShipsSunk = opponentBoard.none { it == 'S' }
+            val nextGameState = when {
+                allShipsSunk -> if (isPlayer1) "Player 1 sank all BATTLESHIPS" else "Player 2 sank all BATTLESHIPS"
+                else -> if (isPlayer1) "player 2 turn" else "player 1 turn"
+            }
+
+            // Update Firestore
+            transaction.update(gameRef, "opponentBoard", opponentBoard)
+            transaction.update(gameRef, "gameState", nextGameState)
+
+            // Update local UI state
+            opponentGameBoard = opponentBoard.toMutableList()
+        }.addOnSuccessListener {
+            Log.d("BattleShipInfo", "Shot registered at $index. Board updated.")
+        }.addOnFailureListener { e ->
+            Log.e("BattleShipError", "Failed to take shot: ", e)
+        }
     }
+
+
+
 
     // Function to check if there's at least one 'W' between ships
     fun isAdjacentToAnotherShip(playerGameBoard: MutableList<Char>, rowSize: Int, startRow: Int, startCol: Int, endRow: Int, endCol: Int): Boolean {
@@ -548,7 +598,13 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
                             Spacer(modifier = Modifier.height(20.dp))
 
                             Text("Opponent's Board", style = MaterialTheme.typography.headlineMedium)
-                            GameBoardGrid(gameBoard = opponentGameBoard, isOpponentBoard = true) {}
+                            GameBoardGrid(gameBoard = opponentGameBoard, isOpponentBoard = true) { index ->
+                                if (myTurn) {  // Ensure the player can only shoot on their turn
+                                    takeShot(index)
+                                } else {
+                                    Log.e("BattleShipError", "Not your turn!")
+                                }}
+
                         }
                     }
                 }
