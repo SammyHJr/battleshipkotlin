@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -337,7 +338,6 @@ fun LobbyScreen(navController: NavController, model: GameModel) {
     }
 }
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GameScreen(navController: NavController, model: GameModel, gameId: String?) {
@@ -346,37 +346,112 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
 
     var playerGameBoard by remember { mutableStateOf(MutableList(100) { 'W' }) }  // Player's board
     var opponentGameBoard by remember { mutableStateOf(MutableList(100) { 'W' }) } // Opponent's board
-
-    var currentShipSize by remember { mutableStateOf(0) }
-    var currentShipName by remember { mutableStateOf("") }
+    var firstClickIndex by remember { mutableStateOf(-1) }  // Track start of ship placement
     var placingShip by remember { mutableStateOf(true) }
-    var firstClickIndex by remember { mutableStateOf(-1) }  // To track the starting position of the ship
-    var currentShipPositions by remember { mutableStateOf<List<Int>>(emptyList()) }  // Track current ship positions
 
     val playerName = players[model.localPlayerId.value]?.name ?: "Unknown"
 
-    val shipNames = mapOf(
-        4 to "Carrier",
-        3 to "Battleship",
-        2 to "Cruiser",
-        2 to "Submarine1",
-        2 to "Submarine2",
-        1 to "Destroyer1",
-        1 to "Destroyer2"
-    )
+    // Ordered ship queue for placement
+    val shipQueue = remember {
+        mutableStateListOf(
+            "Carrier" to 4,
+            "Battleship" to 3,
+            "Cruiser" to 2,
+            "Submarine1" to 2,
+            "Submarine2" to 2,
+            "Destroyer1" to 1,
+            "Destroyer2" to 1
+        )
+    }
+
+
+
+    // Function to place a ship
+    fun placeShip(playerGameBoard: MutableList<Char>, firstClickIndex: Int, index: Int, shipSize: Int): Boolean {
+        val rowSize = 10 // 10x10 grid
+
+        val startRow = firstClickIndex / rowSize
+        val startCol = firstClickIndex % rowSize
+        val endRow = index / rowSize
+        val endCol = index % rowSize
+
+        // Check if ship is placed in a straight line (horizontal or vertical)
+        if (startRow == endRow) { // Horizontal placement
+            val minCol = minOf(startCol, endCol)
+            val maxCol = maxOf(startCol, endCol)
+
+            if ((maxCol - minCol + 1) != shipSize) return false // Ensure correct ship size
+
+            // Ensure no overlapping ships
+            for (col in minCol..maxCol) {
+                if (playerGameBoard[startRow * rowSize + col] == 'S') return false
+            }
+
+            // Place the ship
+            for (col in minCol..maxCol) {
+                playerGameBoard[startRow * rowSize + col] = 'S'
+            }
+            return true
+
+        } else if (startCol == endCol) { // Vertical placement
+            val minRow = minOf(startRow, endRow)
+            val maxRow = maxOf(startRow, endRow)
+
+            if ((maxRow - minRow + 1) != shipSize) return false // Ensure correct ship size
+
+            // Ensure no overlapping ships
+            for (row in minRow..maxRow) {
+                if (playerGameBoard[row * rowSize + startCol] == 'S') return false
+            }
+
+            // Place the ship
+            for (row in minRow..maxRow) {
+                playerGameBoard[row * rowSize + startCol] = 'S'
+            }
+            return true
+        }
+
+        return false // Invalid placement (diagonal or wrong size)
+    }
+
+
+    // Handles ship placement logic
+    fun placeShips(index: Int) {
+        if (shipQueue.isEmpty()) {
+            placingShip = false // All ships placed, proceed to battle phase
+            return
+        }
+
+        val (currentShip, size) = shipQueue.first()
+
+        if (firstClickIndex == -1) {
+            // First click: set the starting position
+            firstClickIndex = index
+        } else {
+            // Second click: attempt to place the ship
+            val success = placeShip(playerGameBoard, firstClickIndex, index, size)
+
+            if (success) {
+                Log.i("BattleShipInfo", "$currentShip placed from $firstClickIndex to $index")
+                shipQueue.removeAt(0) // Move to the next ship
+                firstClickIndex = -1 // Reset for next ship placement
+            } else {
+                Log.e("BattleShipError", "Invalid placement for $currentShip. Try again.")
+                firstClickIndex = -1 // Reset selection for retry
+            }
+        }
+    }
+
 
     if (gameId != null && games.containsKey(gameId)) {
         val game = games[gameId]!!
 
         Scaffold(topBar = { TopAppBar(title = { Text("BattleShip - $playerName") }) }) { innerPadding ->
             Column(
-                modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxSize(),
+                modifier = Modifier.padding(innerPadding).fillMaxSize(),
                 verticalArrangement = Arrangement.Top,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // ✅ Add Player and Game Info on Top
                 Text("Player 1: ${players[game.playerId1]?.name ?: "Unknown"}", style = MaterialTheme.typography.bodyLarge)
                 Text("Player 2: ${players[game.playerId2]?.name ?: "Unknown"}", style = MaterialTheme.typography.bodyLarge)
                 Text("State: ${game.gameState}", style = MaterialTheme.typography.bodyLarge)
@@ -388,13 +463,11 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
                     "Player 1 sank all BATTLESHIPS", "Player 2 sank all BATTLESHIPS" -> {
                         Text("Game Over!", style = MaterialTheme.typography.headlineMedium)
                         Spacer(modifier = Modifier.height(20.dp))
-
                         Text(
                             if (game.gameState == "Player 1 sank all BATTLESHIPS") "Player 1 WON"
                             else "Player 2 WON",
                             style = MaterialTheme.typography.headlineMedium
                         )
-
                         Button(onClick = { navController.navigate("lobby") }) {
                             Text("Back to Lobby")
                         }
@@ -409,67 +482,25 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
                         Text(turnText, style = MaterialTheme.typography.headlineMedium)
                         Spacer(modifier = Modifier.height(20.dp))
 
-                        // ✅ Ship Placement Phase
                         if (placingShip) {
-                            Text("Placing: $currentShipName - Size: $currentShipSize", style = MaterialTheme.typography.bodyLarge)
+                            val (currentShip, size) = shipQueue.firstOrNull() ?: "All ships placed" to 0
+                            Text("Placing: $currentShip - Size: $size", style = MaterialTheme.typography.bodyLarge)
                             Spacer(modifier = Modifier.height(10.dp))
 
-                            // ✅ Your Board for Ship Placement
                             Text("Your Board", style = MaterialTheme.typography.headlineMedium)
-                            GameBoardGrid(gameBoard = playerGameBoard, isOpponentBoard = false) { index ->
-                                // First click to set the start position of the ship
-                                if (firstClickIndex == -1) {
-                                    firstClickIndex = index
-                                } else {
-                                    // Second click: Check if the ship can fit in a straight line (either horizontally or vertically)
-                                    val canPlace = canPlaceShip(playerGameBoard, firstClickIndex, index, currentShipSize)
-                                    if (canPlace) {
-                                        // Mark the ship positions on the grid
-                                        playerGameBoard = playerGameBoard.toMutableList().apply {
-                                            val range = getShipRange(firstClickIndex, index, currentShipSize)
-                                            range.forEach { this[it] = 'S' }
-                                        }
-                                        // Reset for the next ship
-                                        firstClickIndex = -1
-
-                                        // Move to next ship after placing current one
-                                        val nextShipSize = shipNames.keys.find { it > currentShipSize }
-                                        if (nextShipSize != null) {
-                                            currentShipSize = nextShipSize
-                                            currentShipName = shipNames[currentShipSize] ?: ""
-                                        } else {
-                                            // No more ships, end placement phase
-                                            placingShip = false
-                                        }
-                                    } else {
-                                        // Invalid placement, reset first click
-                                        firstClickIndex = -1
-                                    }
-                                }
-                            }
+                            GameBoardGrid(gameBoard = playerGameBoard, isOpponentBoard = false, onCellClick = { index ->
+                                placeShips(index)
+                            })
 
                             Spacer(modifier = Modifier.height(20.dp))
-
                         } else {
-                            // ✅ Your Board - After Placement Phase
                             Text("Your Board", style = MaterialTheme.typography.headlineMedium)
-                            GameBoardGrid(gameBoard = playerGameBoard, isOpponentBoard = false) { index ->
-                                playerGameBoard = playerGameBoard.toMutableList().also {
-                                    if (it[index] == 'W') it[index] = 'M' // Miss
-                                    else if (it[index] == 'S') it[index] = 'H' // Hit
-                                }
-                            }
+                            GameBoardGrid(gameBoard = playerGameBoard, isOpponentBoard = false) {}
 
                             Spacer(modifier = Modifier.height(20.dp))
 
-                            // ✅ Opponent's Board
                             Text("Opponent's Board", style = MaterialTheme.typography.headlineMedium)
-                            GameBoardGrid(gameBoard = opponentGameBoard, isOpponentBoard = true) { index ->
-                                opponentGameBoard = opponentGameBoard.toMutableList().also {
-                                    if (it[index] == 'W') it[index] = 'M' // Miss
-                                    else if (it[index] == 'S') it[index] = 'H' // Hit
-                                }
-                            }
+                            GameBoardGrid(gameBoard = opponentGameBoard, isOpponentBoard = true) {}
                         }
                     }
                 }
@@ -481,62 +512,8 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
     }
 }
 
-// Function to check if ship can be placed in a straight line
-fun canPlaceShip(board: List<Char>, startIndex: Int, endIndex: Int, size: Int): Boolean {
-    val startRow = startIndex / 10
-    val startCol = startIndex % 10
-    val endRow = endIndex / 10
-    val endCol = endIndex % 10
 
-    // Check if the start and end positions are in the same row or column (straight line)
-    return if (startRow == endRow) {
-        // Horizontal placement
-        val start = minOf(startCol, endCol)
-        val end = maxOf(startCol, endCol)
-        if (end - start + 1 == size) {
-            for (i in start..end) {
-                if (board[startRow * 10 + i] != 'W') return false  // Overlap
-            }
-            return true
-        }
-        false
-    } else if (startCol == endCol) {
-        // Vertical placement
-        val start = minOf(startRow, endRow)
-        val end = maxOf(startRow, endRow)
-        if (end - start + 1 == size) {
-            for (i in start..end) {
-                if (board[i * 10 + startCol] != 'W') return false  // Overlap
-            }
-            return true
-        }
-        false
-    } else {
-        false
-    }
-}
 
-// Function to get the range of ship positions (either horizontally or vertically)
-fun getShipRange(startIndex: Int, endIndex: Int, size: Int): List<Int> {
-    val startRow = startIndex / 10
-    val startCol = startIndex % 10
-    val endRow = endIndex / 10
-    val endCol = endIndex % 10
-
-    return if (startRow == endRow) {
-        // Horizontal placement
-        val start = minOf(startCol, endCol)
-        val end = maxOf(startCol, endCol)
-        (start..end).map { startRow * 10 + it }
-    } else {
-        // Vertical placement
-        val start = minOf(startRow, endRow)
-        val end = maxOf(startRow, endRow)
-        (start..end).map { it * 10 + startCol }
-    }
-}
-
-//creates the gameBoard
 @Composable
 fun GameBoardGrid(
     gameBoard: List<Char>,
@@ -548,35 +525,30 @@ fun GameBoardGrid(
             Row {
                 for (col in 0 until 10) {
                     val index = row * 10 + col
-                    Button(
+                    Box(
                         modifier = Modifier
-                            .size(25.dp)
-                            .padding(2.dp)
-                            .aspectRatio(1f),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = when (gameBoard[index]) {
-                                'W' -> Color.LightGray   // Water
-                                'S' -> Color.Black   // Ship (only visible to the player)
-                                'H' -> Color.Red    // Hit
-                                else -> Color.DarkGray
+                            .size(30.dp)  // Slightly larger for better touch interaction
+                            .padding(1.dp)
+                            .aspectRatio(1f)
+                            .border(1.dp, Color.Black)  // Add border for better visibility
+                            .background(
+                                when (gameBoard[index]) {
+                                    'W' -> Color.LightGray   // Water
+                                    'S' -> if (isOpponentBoard) Color.LightGray else Color.Black  // Hide ships from opponent
+                                    'H' -> Color.Red         // Hit
+                                    else -> Color.DarkGray
+                                }
+                            )
+                            .clickable {
+                                onCellClick(index)  // Allow clicks on both boards
                             }
-                        ),
-                        onClick = {
-                            if (isOpponentBoard) {
-                                onCellClick(index) // Allow attacks on the opponent's board
-                            }
-                        }
-                    ) {
-                        Text(
-                            text = if (isOpponentBoard && gameBoard[index] == 'S') "W" else gameBoard[index].toString(),
-                            color = Color.White
-                        )
-                    }
+                    )
                 }
             }
         }
     }
 }
+
 
 fun updatePlayerStatus(playerId: String, status: String) {
     val db = FirebaseFirestore.getInstance()
