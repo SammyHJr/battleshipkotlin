@@ -527,10 +527,10 @@ fun GameBoardGrid(
                     val index = row * 10 + col
                     Box(
                         modifier = Modifier
-                            .size(30.dp)  // Slightly larger for better touch interaction
+                            .size(32.dp)  // Slightly larger for better touch interaction
                             .padding(1.dp)
                             .aspectRatio(1f)
-                            .border(1.dp, Color.Black)  // Add border for better visibility
+
                             .background(
                                 when (gameBoard[index]) {
                                     'W' -> Color.LightGray   // Water
