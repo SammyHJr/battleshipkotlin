@@ -338,6 +338,8 @@ fun LobbyScreen(navController: NavController, model: GameModel) {
     }
 }
 
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GameScreen(navController: NavController, model: GameModel, gameId: String?) {
@@ -348,6 +350,7 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
     var opponentGameBoard by remember { mutableStateOf(MutableList(100) { 'W' }) } // Opponent's board
     var firstClickIndex by remember { mutableStateOf(-1) }  // Track start of ship placement
     var placingShip by remember { mutableStateOf(true) }
+    var readyToBattle by remember { mutableStateOf(false) } // State for the "Ready" button
 
     val playerName = players[model.localPlayerId.value]?.name ?: "Unknown"
 
@@ -356,7 +359,6 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
         mutableStateListOf(
             "Carrier" to 4,
             "Battleship" to 3,
-            "Cruiser" to 2,
             "Submarine1" to 2,
             "Submarine2" to 2,
             "Destroyer1" to 1,
@@ -364,7 +366,30 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
         )
     }
 
+    // Function to check if there's at least one 'W' between ships
+    fun isAdjacentToAnotherShip(playerGameBoard: MutableList<Char>, rowSize: Int, startRow: Int, startCol: Int, endRow: Int, endCol: Int): Boolean {
+        val directions = arrayOf(
+            -1 to 0, 1 to 0, 0 to -1, 0 to 1,  // Vertical and Horizontal
+            -1 to -1, -1 to 1, 1 to -1, 1 to 1 // Diagonal directions
+        )
 
+        for (d in directions) {
+            var row = startRow + d.first
+            var col = startCol + d.second
+
+            if (row in 0 until 10 && col in 0 until 10 && playerGameBoard[row * rowSize + col] == 'S') {
+                return true // Ship is adjacent
+            }
+
+            row = endRow + d.first
+            col = endCol + d.second
+
+            if (row in 0 until 10 && col in 0 until 10 && playerGameBoard[row * rowSize + col] == 'S') {
+                return true // Ship is adjacent
+            }
+        }
+        return false // No adjacent ships found
+    }
 
     // Function to place a ship
     fun placeShip(playerGameBoard: MutableList<Char>, firstClickIndex: Int, index: Int, shipSize: Int): Boolean {
@@ -375,73 +400,76 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
         val endRow = index / rowSize
         val endCol = index % rowSize
 
-        // Check if ship is placed in a straight line (horizontal or vertical)
         if (startRow == endRow) { // Horizontal placement
             val minCol = minOf(startCol, endCol)
             val maxCol = maxOf(startCol, endCol)
 
-            if ((maxCol - minCol + 1) != shipSize) return false // Ensure correct ship size
+            if ((maxCol - minCol + 1) != shipSize) return false
 
-            // Ensure no overlapping ships
             for (col in minCol..maxCol) {
                 if (playerGameBoard[startRow * rowSize + col] == 'S') return false
             }
 
-            // Place the ship
+            if (isAdjacentToAnotherShip(playerGameBoard, rowSize, startRow, minCol, startRow, maxCol)) {
+                return false
+            }
+
             for (col in minCol..maxCol) {
                 playerGameBoard[startRow * rowSize + col] = 'S'
             }
             return true
-
         } else if (startCol == endCol) { // Vertical placement
             val minRow = minOf(startRow, endRow)
             val maxRow = maxOf(startRow, endRow)
 
-            if ((maxRow - minRow + 1) != shipSize) return false // Ensure correct ship size
+            if ((maxRow - minRow + 1) != shipSize) return false
 
-            // Ensure no overlapping ships
             for (row in minRow..maxRow) {
                 if (playerGameBoard[row * rowSize + startCol] == 'S') return false
             }
 
-            // Place the ship
+            if (isAdjacentToAnotherShip(playerGameBoard, rowSize, minRow, startCol, maxRow, startCol)) {
+                return false
+            }
+
             for (row in minRow..maxRow) {
                 playerGameBoard[row * rowSize + startCol] = 'S'
             }
             return true
         }
-
-        return false // Invalid placement (diagonal or wrong size)
+        return false
     }
-
 
     // Handles ship placement logic
     fun placeShips(index: Int) {
         if (shipQueue.isEmpty()) {
-            placingShip = false // All ships placed, proceed to battle phase
+            placingShip = false
+            readyToBattle = true // Show the "Ready" button after all ships are placed
+
+            // Save ship coordinates to the database
+            if (gameId != null && model.localPlayerId.value != null) {
+                saveShipCoordinatesToDatabase(gameId, model.localPlayerId.value!!, playerGameBoard)
+            }
             return
         }
 
         val (currentShip, size) = shipQueue.first()
 
         if (firstClickIndex == -1) {
-            // First click: set the starting position
             firstClickIndex = index
         } else {
-            // Second click: attempt to place the ship
             val success = placeShip(playerGameBoard, firstClickIndex, index, size)
 
             if (success) {
                 Log.i("BattleShipInfo", "$currentShip placed from $firstClickIndex to $index")
-                shipQueue.removeAt(0) // Move to the next ship
-                firstClickIndex = -1 // Reset for next ship placement
+                shipQueue.removeAt(0)
+                firstClickIndex = -1
             } else {
                 Log.e("BattleShipError", "Invalid placement for $currentShip. Try again.")
-                firstClickIndex = -1 // Reset selection for retry
+                firstClickIndex = -1
             }
         }
     }
-
 
     if (gameId != null && games.containsKey(gameId)) {
         val game = games[gameId]!!
@@ -488,11 +516,19 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
                             Spacer(modifier = Modifier.height(10.dp))
 
                             Text("Your Board", style = MaterialTheme.typography.headlineMedium)
-                            GameBoardGrid(gameBoard = playerGameBoard, isOpponentBoard = false, onCellClick = { index ->
-                                placeShips(index)
-                            })
+                            GameBoardGrid(gameBoard = playerGameBoard, isOpponentBoard = false, onCellClick = { index -> placeShips(index) })
 
                             Spacer(modifier = Modifier.height(20.dp))
+
+                            if (readyToBattle) {
+                                Button(onClick = {
+                                    // Trigger ready state to start battle
+                                    // Example: transition to the battle phase (implement logic as needed)
+                                    navController.navigate("battle")
+                                }) {
+                                    Text("Ready")
+                                }
+                            }
                         } else {
                             Text("Your Board", style = MaterialTheme.typography.headlineMedium)
                             GameBoardGrid(gameBoard = playerGameBoard, isOpponentBoard = false) {}
@@ -559,5 +595,81 @@ fun updatePlayerStatus(playerId: String, status: String) {
         }
         .addOnFailureListener { error ->
             Log.e("BattleShipError", "Failed to update status: ${error.message}")
+        }
+}
+
+
+fun getShipCoordinates(playerGameBoard: MutableList<Char>, rowSize: Int): List<Pair<Int, Int>> {
+    val coordinates = mutableListOf<Pair<Int, Int>>()
+    for (i in playerGameBoard.indices) {
+        if (playerGameBoard[i] == 'S') {
+            val row = i / rowSize
+            val col = i % rowSize
+            coordinates.add(Pair(row, col))
+        }
+    }
+    return coordinates
+}
+
+// Function to store ship coordinates in the Firebase database
+// Function to store ship coordinates in the Firebase database
+fun saveShipCoordinatesToDatabase(gameId: String, localPlayerId: String, playerGameBoard: MutableList<Char>) {
+    val shipCoordinates = mutableListOf<Pair<Int, Int>>()
+
+    // Collect the coordinates where ships are placed
+    for (i in playerGameBoard.indices) {
+        if (playerGameBoard[i] == 'S') {
+            val row = i / 10
+            val col = i % 10
+            shipCoordinates.add(Pair(row, col))
+        }
+    }
+
+    // Get Firebase reference
+    val db = FirebaseFirestore.getInstance()
+    val gameRef = db.collection("games").document(gameId)
+
+    // Fetch the game document to ensure it exists
+    gameRef.get()
+        .addOnSuccessListener { document ->
+            if (document.exists()) {
+                val game = document.toObject(Game::class.java)
+
+                if (game != null) {
+                    // Save coordinates based on the player ID
+                    when (localPlayerId) {
+                        game.playerId1 -> {
+                            // Save coordinates for Player 1
+                            gameRef.update("player1Coordinates", shipCoordinates)
+                                .addOnSuccessListener {
+                                    Log.i("BattleShipInfo", "Player 1's ship coordinates saved successfully.")
+                                }
+                                .addOnFailureListener { e ->
+                                    Log.e("BattleShipError", "Failed to save Player 1's ship coordinates: $e")
+                                }
+                        }
+                        game.playerId2 -> {
+                            // Save coordinates for Player 2
+                            gameRef.update("player2Coordinates", shipCoordinates)
+                                .addOnSuccessListener {
+                                    Log.i("BattleShipInfo", "Player 2's ship coordinates saved successfully.")
+                                }
+                                .addOnFailureListener { e ->
+                                    Log.e("BattleShipError", "Failed to save Player 2's ship coordinates: $e")
+                                }
+                        }
+                        else -> {
+                            Log.e("BattleShipError", "Local player ID does not match any player in the game.")
+                        }
+                    }
+                } else {
+                    Log.e("BattleShipError", "Game object is null.")
+                }
+            } else {
+                Log.e("BattleShipError", "Game document not found in Firestore.")
+            }
+        }
+        .addOnFailureListener { e ->
+            Log.e("BattleShipError", "Failed to fetch game document: $e")
         }
 }
