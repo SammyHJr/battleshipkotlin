@@ -453,11 +453,13 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
     fun placeShips(index: Int) {
         if (shipQueue.isEmpty()) {
             placingShip = false
-            readyToBattle = true // Show the "Ready" button after all ships are placed
+            readyToBattle = true // Show the "Ready" button
 
-            // Save ship coordinates to the database
             if (gameId != null && model.localPlayerId.value != null) {
                 saveShipCoordinatesToDatabase(gameId, model.localPlayerId.value!!, playerGameBoard)
+
+                // Mark the player as "ready"
+                model.setPlayerReady(gameId, model.localPlayerId.value!!)
             }
             return
         }
@@ -479,6 +481,7 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
             }
         }
     }
+
 
     if (gameId != null && games.containsKey(gameId)) {
         val game = games[gameId]!!

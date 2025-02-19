@@ -1,5 +1,6 @@
 package com.example.battleshipkotlin
 
+import android.util.Log
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
@@ -118,4 +119,26 @@ class GameModel: ViewModel(){
         }
 
     }
+
+    fun setPlayerReady(gameId: String, playerId: String) {
+        val gameRef = Firebase.firestore.collection("games").document(gameId)
+
+        Firebase.firestore.runTransaction { transaction ->
+            val gameSnapshot = transaction.get(gameRef)
+            val readyPlayers = gameSnapshot.getLong("readyPlayers") ?: 0
+            val newReadyCount = readyPlayers + 1
+
+            transaction.update(gameRef, "readyPlayers", newReadyCount)
+
+            if (newReadyCount >= 2) {
+                transaction.update(gameRef, "gameState", "player 1 turn")
+            }
+        }.addOnSuccessListener {
+            Log.d("BattleShipInfo", "Player $playerId is ready. Game updated.")
+        }.addOnFailureListener { e ->
+            Log.e("BattleShipError", "Failed to update readiness: ", e)
+        }
+    }
+
+
 }
