@@ -366,6 +366,15 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
         )
     }
 
+    fun takeShot(index: Int) {
+        if (opponentGameBoard[index] == 'W') {
+            opponentGameBoard[index] = 'M' // Mark as miss
+        } else if (opponentGameBoard[index] == 'S') {
+            opponentGameBoard[index] = 'H' // Mark as hit
+        }
+        // TODO: Update the game state in Firebase
+    }
+
     // Function to check if there's at least one 'W' between ships
     fun isAdjacentToAnotherShip(playerGameBoard: MutableList<Char>, rowSize: Int, startRow: Int, startCol: Int, endRow: Int, endCol: Int): Boolean {
         val directions = arrayOf(
@@ -507,7 +516,7 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
                                     (game.gameState == "player 2 turn" && game.playerId2 == model.localPlayerId.value)
                         val turnText = if (myTurn) "Your Turn" else "Waiting for Opponent"
 
-                        Text(turnText, style = MaterialTheme.typography.headlineMedium)
+                        Text(turnText, style = MaterialTheme.typography.headlineSmall)
                         Spacer(modifier = Modifier.height(20.dp))
 
                         if (placingShip) {
@@ -563,7 +572,7 @@ fun GameBoardGrid(
                     val index = row * 10 + col
                     Box(
                         modifier = Modifier
-                            .size(32.dp)  // Slightly larger for better touch interaction
+                            .size(30.dp)  // Slightly larger for better touch interaction
                             .padding(1.dp)
                             .aspectRatio(1f)
 
@@ -596,19 +605,6 @@ fun updatePlayerStatus(playerId: String, status: String) {
         .addOnFailureListener { error ->
             Log.e("BattleShipError", "Failed to update status: ${error.message}")
         }
-}
-
-
-fun getShipCoordinates(playerGameBoard: MutableList<Char>, rowSize: Int): List<Pair<Int, Int>> {
-    val coordinates = mutableListOf<Pair<Int, Int>>()
-    for (i in playerGameBoard.indices) {
-        if (playerGameBoard[i] == 'S') {
-            val row = i / rowSize
-            val col = i % rowSize
-            coordinates.add(Pair(row, col))
-        }
-    }
-    return coordinates
 }
 
 // Function to store ship coordinates in the Firebase database
