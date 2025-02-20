@@ -369,26 +369,39 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
     }
 
     fun takeShot(index: Int) {
-        if (!readyToBattle || gameId == null || model.localPlayerId.value == null) return
+        Log.d("BattleShipDebug", "takeShot called at index $index") // Debug log
 
-        val game = games[gameId] ?: return
+        if (!readyToBattle || gameId == null || model.localPlayerId.value == null) {
+            Log.e("BattleShipError", "Not ready to battle, gameId: $gameId")
+            return
+        }
+
+        val game = games[gameId] ?: run {
+            Log.e("BattleShipError", "Game not found in games map!")
+            return
+        }
+
         val currentPlayerId = model.localPlayerId.value!!
         val isPlayer1 = game.playerId1 == currentPlayerId
         val isPlayerTurn = (game.gameState == "player 1 turn" && isPlayer1) ||
                 (game.gameState == "player 2 turn" && !isPlayer1)
 
+        Log.d("BattleShipDebug", "Game state: ${game.gameState}, isPlayer1: $isPlayer1, isPlayerTurn: $isPlayerTurn")
+
         if (!isPlayerTurn) {
-            Log.w("BattleShipWarning", "Not your turn!")
+            Log.e("BattleShipError", "Not your turn!")
             return
         }
 
         val gameRef = Firebase.firestore.collection("games").document(gameId)
 
         Firebase.firestore.runTransaction { transaction ->
-            val gameSnapshot = transaction.get(gameRef)
+            Log.d("BattleShipDebug", "Starting transaction for index $index")
 
-            // Retrieve the opponent's board from Firestore
+            val gameSnapshot = transaction.get(gameRef)
             val opponentBoard = gameSnapshot.get("opponentBoard") as? MutableList<Char> ?: MutableList(100) { 'W' }
+
+            Log.d("BattleShipDebug", "Opponent board before shot: $opponentBoard")
 
             if (opponentBoard[index] == 'H' || opponentBoard[index] == 'M') {
                 Log.w("BattleShipWarning", "Already shot here!")
@@ -396,10 +409,12 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
             }
 
             // Determine hit or miss
-            if (opponentBoard[index] == 'S') {
-                opponentBoard[index] = 'H' // Hit
+            opponentBoard[index] = if (opponentBoard[index] == 'S') {
+                Log.d("BattleShipDebug", "Hit at index $index")
+                'H'
             } else {
-                opponentBoard[index] = 'M' // Miss
+                Log.d("BattleShipDebug", "Miss at index $index")
+                'M'
             }
 
             // Check if all ships are sunk
@@ -413,14 +428,14 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
             transaction.update(gameRef, "opponentBoard", opponentBoard)
             transaction.update(gameRef, "gameState", nextGameState)
 
-            // Update local UI state
-            opponentGameBoard = opponentBoard.toMutableList()
+            Log.d("BattleShipDebug", "Updated Firestore: new game state = $nextGameState")
         }.addOnSuccessListener {
-            Log.d("BattleShipInfo", "Shot registered at $index. Board updated.")
+            Log.d("BattleShipDebug", "Firestore transaction successful")
         }.addOnFailureListener { e ->
             Log.e("BattleShipError", "Failed to take shot: ", e)
         }
     }
+
 
 
 
@@ -569,6 +584,7 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
                                     (game.gameState == "player 2 turn" && game.playerId2 == model.localPlayerId.value)
                         val turnText = if (myTurn) "Your Turn" else "Waiting for Opponent"
 
+
                         Text(turnText, style = MaterialTheme.typography.headlineSmall)
                         Spacer(modifier = Modifier.height(20.dp))
 
@@ -582,15 +598,6 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
 
                             Spacer(modifier = Modifier.height(20.dp))
 
-                            if (readyToBattle) {
-                                Button(onClick = {
-                                    // Trigger ready state to start battle
-                                    // Example: transition to the battle phase (implement logic as needed)
-                                    navController.navigate("battle")
-                                }) {
-                                    Text("Ready")
-                                }
-                            }
                         } else {
                             Text("Your Board", style = MaterialTheme.typography.headlineMedium)
                             GameBoardGrid(gameBoard = playerGameBoard, isOpponentBoard = false) {}
@@ -599,12 +606,8 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
 
                             Text("Opponent's Board", style = MaterialTheme.typography.headlineMedium)
                             GameBoardGrid(gameBoard = opponentGameBoard, isOpponentBoard = true) { index ->
-                                if (myTurn) {  // Ensure the player can only shoot on their turn
-                                    takeShot(index)
-                                } else {
-                                    Log.e("BattleShipError", "Not your turn!")
-                                }}
-
+                                takeShot(index)
+                            }
                         }
                     }
                 }
@@ -703,6 +706,7 @@ fun saveShipCoordinatesToDatabase(gameId: String, localPlayerId: String, playerG
                                     Log.e("BattleShipError", "Failed to save Player 1's ship coordinates: $e")
                                 }
                         }
+
                         game.playerId2 -> {
                             // Save coordinates for Player 2
                             gameRef.update("player2Coordinates", shipCoordinates)
