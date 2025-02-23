@@ -383,8 +383,8 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
 
         val currentPlayerId = model.localPlayerId.value!!
         val isPlayer1 = game.playerId1 == currentPlayerId
-        val isPlayerTurn = (game.gameState == "player 1 turn" && isPlayer1) ||
-                (game.gameState == "player 2 turn" && !isPlayer1)
+        val isPlayerTurn = (game.gameState == "player1_turn" && isPlayer1) ||
+                (game.gameState == "player2_turn" && !isPlayer1)
 
         Log.d("BattleShipDebug", "Game state: ${game.gameState}, isPlayer1: $isPlayer1, isPlayerTurn: $isPlayerTurn")
 
@@ -399,33 +399,37 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
             Log.d("BattleShipDebug", "Starting transaction for index $index")
 
             val gameSnapshot = transaction.get(gameRef)
-            val opponentBoard = gameSnapshot.get("opponentBoard") as? MutableList<Char> ?: MutableList(100) { 'W' }
 
-            Log.d("BattleShipDebug", "Opponent board before shot: $opponentBoard")
+            // Determine which board to target
+            val targetBoardField = if (isPlayer1) "gameBoard2" else "gameBoard1"
+            val targetBoard = (gameSnapshot.get(targetBoardField) as? List<Int>)?.toMutableList() ?: MutableList(100) { 0 }
 
-            if (opponentBoard[index] == 'H' || opponentBoard[index] == 'M') {
+            Log.d("BattleShipDebug", "Target board before shot: $targetBoard")
+
+            // Check if already hit or missed
+            if (targetBoard[index] == 'H'.code || targetBoard[index] == 'M'.code) {
                 Log.w("BattleShipWarning", "Already shot here!")
                 return@runTransaction
             }
 
             // Determine hit or miss
-            opponentBoard[index] = if (opponentBoard[index] == 'S') {
+            targetBoard[index] = if (targetBoard[index] == 1) {
                 Log.d("BattleShipDebug", "Hit at index $index")
-                'H'
+                'H'.code
             } else {
                 Log.d("BattleShipDebug", "Miss at index $index")
-                'M'
+                'M'.code
             }
 
             // Check if all ships are sunk
-            val allShipsSunk = opponentBoard.none { it == 'S' }
+            val allShipsSunk = targetBoard.none { it == 1 }
             val nextGameState = when {
                 allShipsSunk -> if (isPlayer1) "Player 1 sank all BATTLESHIPS" else "Player 2 sank all BATTLESHIPS"
-                else -> if (isPlayer1) "player 2 turn" else "player 1 turn"
+                else -> if (isPlayer1) "player2_turn" else "player1_turn"
             }
 
             // Update Firestore
-            transaction.update(gameRef, "opponentBoard", opponentBoard)
+            transaction.update(gameRef, targetBoardField, targetBoard)
             transaction.update(gameRef, "gameState", nextGameState)
 
             Log.d("BattleShipDebug", "Updated Firestore: new game state = $nextGameState")
@@ -435,6 +439,7 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
             Log.e("BattleShipError", "Failed to take shot: ", e)
         }
     }
+
 
 
 

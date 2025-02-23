@@ -22,7 +22,8 @@ data class Player(
 
 
 data class Game(
-    var gameBoard: List<Int> = List(100) {0},
+    var gameBoard1: List<Int> = List(100) {0},
+    var gameBoard2: List<Int> = List(100) {0},
     var gameState: String = "invite",
     var playerId1: String = "",
     var playerId2: String = ""
@@ -67,9 +68,8 @@ class GameModel: ViewModel(){
             }
 
         fun checkWinner(game: Game): Int? {
-            val list = game.gameBoard
-            val player1ShipsLeft = list.count { it == 1 } // Remaining ships for Player 1
-            val player2ShipsLeft = list.count { it == 2 } // Remaining ships for Player 2 (if using a single board)
+            val player1ShipsLeft = game.gameBoard1.count { it == 1 } // Count ships on Player 1's board
+            val player2ShipsLeft = game.gameBoard2.count { it == 1 } // Count ships on Player 2's board
 
             return when {
                 player1ShipsLeft == 0 -> 2  // Player 2 wins
@@ -79,44 +79,63 @@ class GameModel: ViewModel(){
         }
 
 
+
         fun checkGameState(gameId: String?, cell: Int) {
-            if (gameId != null) {
-                val game: Game? = gameMap.value[gameId]
-                if (game != null) {
+            if (gameId == null) return
 
-                    val myTurn = (game.gameState == "player1_turn" && game.playerId1 == localPlayerId.value) ||
-                            (game.gameState == "player2_turn" && game.playerId2 == localPlayerId.value)
-                    if (!myTurn) return
+            val game: Game? = gameMap.value[gameId]
+            if (game != null) {
 
-                    val list: MutableList<Int> = game.gameBoard.toMutableList()
+                val isPlayer1 = game.playerId1 == localPlayerId.value
+                val isPlayer2 = game.playerId2 == localPlayerId.value
+                val myTurn = (game.gameState == "player1_turn" && isPlayer1) ||
+                        (game.gameState == "player2_turn" && isPlayer2)
 
-                    // Check what is currently in the cell
-                    when (list[cell]) {
-                        1 -> list[cell] = 'H'.code // Ship hit (H)
-                        0 -> list[cell] = 'M'.code // Missed shot (M)
-                        'H'.code, 'M'.code -> return // Ignore already hit/missed cells
-                    }
+                if (!myTurn) return
 
-                    // Determine next turn
-                    var turn = if (game.gameState == "player1_turn") "player2_turn" else "player1_turn"
+                // Determine the board to update (Player 1 attacks Player 2's board and vice versa)
+                val opponentBoard = if (isPlayer1) game.gameBoard2.toMutableList() else game.gameBoard1.toMutableList()
 
-                    // Check if there is a winner
-                    val winner = checkWinner(game)
-                    if (winner == 1) {
-                        turn = "player1_won"
-                    } else if (winner == 2) {
-                        turn = "player2_won"
-                    }
-
-                    // Update Firebase with the new board state and turn
-                    db.collection("games").document(gameId)
-                        .update(
-                            "gameBoard", list,
-                            "gameState", turn
-                        )
+                // Check what is currently in the cell
+                when (opponentBoard[cell]) {
+                    1 -> opponentBoard[cell] = 'H'.code // Ship hit (H)
+                    0 -> opponentBoard[cell] = 'M'.code // Missed shot (M)
+                    'H'.code, 'M'.code -> return // Ignore already hit/missed cells
                 }
+
+                // Determine next turn
+                var turn = if (game.gameState == "player1_turn") "player2_turn" else "player1_turn"
+
+                // Check if there is a winner
+                val winner = checkWinner(game)
+                if (winner == 1) {
+                    turn = "player1_won"
+                } else if (winner == 2) {
+                    turn = "player2_won"
+                }
+
+                // Update Firebase with the new board state and turn
+                val updatedFields = mutableMapOf<String, Any>(
+                    "gameState" to turn
+                )
+
+                if (isPlayer1) {
+                    updatedFields["gameBoard2"] = opponentBoard
+                } else {
+                    updatedFields["gameBoard1"] = opponentBoard
+                }
+
+                db.collection("games").document(gameId)
+                    .update(updatedFields)
+                    .addOnSuccessListener {
+                        Log.d("BattleShipInfo", "Game state updated successfully.")
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e("BattleShipError", "Failed to update game state: ", e)
+                    }
             }
         }
+
 
     }
 
