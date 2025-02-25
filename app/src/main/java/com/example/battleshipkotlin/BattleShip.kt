@@ -401,7 +401,7 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
             val gameSnapshot = transaction.get(gameRef)
 
             // Determine which board to target
-            val targetBoardField = if (isPlayer1) "gameBoard2" else "gameBoard1"
+            val targetBoardField = if (isPlayer1) "player2Coordinates" else "player1Coordinates"
             val targetBoard = (gameSnapshot.get(targetBoardField) as? List<Int>)?.toMutableList() ?: MutableList(100) { 0 }
 
             Log.d("BattleShipDebug", "Target board before shot: $targetBoard")
@@ -439,11 +439,6 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
             Log.e("BattleShipError", "Failed to take shot: ", e)
         }
     }
-
-
-
-
-
 
     // Function to check if there's at least one 'W' between ships
     fun isAdjacentToAnotherShip(playerGameBoard: MutableList<Char>, rowSize: Int, startRow: Int, startCol: Int, endRow: Int, endCol: Int): Boolean {
