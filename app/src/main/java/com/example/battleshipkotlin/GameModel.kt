@@ -22,8 +22,8 @@ data class Player(
 
 
 data class Game(
-    var gameBoard1: List<Int> = List(100) {0},
-    var gameBoard2: List<Int> = List(100) {0},
+    var gameBoard1: MutableList<Int> = MutableList(100) { 0 }, // ✅ Mutable
+    var gameBoard2: MutableList<Int> = MutableList(100) { 0 }, // ✅ Mutable
     var gameState: String = "invite",
     var playerId1: String = "",
     var playerId2: String = ""
@@ -140,24 +140,32 @@ class GameModel: ViewModel(){
     }
 
     fun setPlayerReady(gameId: String, playerId: String) {
-        val gameRef = Firebase.firestore.collection("games").document(gameId)
+        val gameRef = db.collection("games").document(gameId)
 
         Firebase.firestore.runTransaction { transaction ->
             val gameSnapshot = transaction.get(gameRef)
-            val readyPlayers = gameSnapshot.getLong("readyPlayers") ?: 0
-            val newReadyCount = readyPlayers + 1
+            val readyPlayers = gameSnapshot.get("readyPlayers") as? MutableList<String> ?: mutableListOf()
 
-            transaction.update(gameRef, "readyPlayers", newReadyCount)
+            if (playerId in readyPlayers) return@runTransaction // Avoid duplicate entries
 
-            if (newReadyCount >= 2) {
-                transaction.update(gameRef, "gameState", "player 1 turn")
+            readyPlayers.add(playerId)
+            transaction.update(gameRef, "readyPlayers", readyPlayers)
+
+            val playerId1 = gameSnapshot.getString("playerId1") ?: ""
+            val playerId2 = gameSnapshot.getString("playerId2") ?: ""
+
+            // ✅ **Check if both players are ready → Set gameState to player1_turn**
+            if (readyPlayers.containsAll(listOf(playerId1, playerId2))) {
+                Log.d("BattleShipDebug", "Both players are ready, setting gameState to player1_turn")
+                transaction.update(gameRef, "gameState", "player1_turn")
             }
         }.addOnSuccessListener {
-            Log.d("BattleShipInfo", "Player $playerId is ready. Game updated.")
+            Log.d("BattleShipDebug", "Player $playerId is ready. Game updated.")
         }.addOnFailureListener { e ->
             Log.e("BattleShipError", "Failed to update readiness: ", e)
         }
     }
+
 
 
 }

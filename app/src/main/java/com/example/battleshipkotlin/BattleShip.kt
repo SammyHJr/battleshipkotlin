@@ -401,7 +401,7 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
             val gameSnapshot = transaction.get(gameRef)
 
             // Determine which board to target
-            val targetBoardField = if (isPlayer1) "player2Coordinates" else "player1Coordinates"
+            val targetBoardField = if (isPlayer1) "gameBoard2" else "gameBoard1"
             val targetBoard = (gameSnapshot.get(targetBoardField) as? List<Int>)?.toMutableList() ?: MutableList(100) { 0 }
 
             Log.d("BattleShipDebug", "Target board before shot: $targetBoard")
@@ -672,63 +672,79 @@ fun updatePlayerStatus(playerId: String, status: String) {
 // Function to store ship coordinates in the Firebase database
 // Function to store ship coordinates in the Firebase database
 fun saveShipCoordinatesToDatabase(gameId: String, localPlayerId: String, playerGameBoard: MutableList<Char>) {
-    val shipCoordinates = mutableListOf<Pair<Int, Int>>()
+    val shipCoordinates = mutableListOf<Int>()
 
-    // Collect the coordinates where ships are placed
+    // ✅ Collect the correct indices where ships are placed
     for (i in playerGameBoard.indices) {
         if (playerGameBoard[i] == 'S') {
-            val row = i / 10
-            val col = i % 10
-            shipCoordinates.add(Pair(row, col))
+            shipCoordinates.add(i) // Directly store 1D index
         }
     }
 
-    // Get Firebase reference
+    // ✅ Get Firebase reference
     val db = FirebaseFirestore.getInstance()
     val gameRef = db.collection("games").document(gameId)
 
-    // Fetch the game document to ensure it exists
+    // ✅ Fetch the game document
     gameRef.get()
         .addOnSuccessListener { document ->
-            if (document.exists()) {
-                val game = document.toObject(Game::class.java)
-
-                if (game != null) {
-                    // Save coordinates based on the player ID
-                    when (localPlayerId) {
-                        game.playerId1 -> {
-                            // Save coordinates for Player 1
-                            gameRef.update("player1Coordinates", shipCoordinates)
-                                .addOnSuccessListener {
-                                    Log.i("BattleShipInfo", "Player 1's ship coordinates saved successfully.")
-                                }
-                                .addOnFailureListener { e ->
-                                    Log.e("BattleShipError", "Failed to save Player 1's ship coordinates: $e")
-                                }
-                        }
-
-                        game.playerId2 -> {
-                            // Save coordinates for Player 2
-                            gameRef.update("player2Coordinates", shipCoordinates)
-                                .addOnSuccessListener {
-                                    Log.i("BattleShipInfo", "Player 2's ship coordinates saved successfully.")
-                                }
-                                .addOnFailureListener { e ->
-                                    Log.e("BattleShipError", "Failed to save Player 2's ship coordinates: $e")
-                                }
-                        }
-                        else -> {
-                            Log.e("BattleShipError", "Local player ID does not match any player in the game.")
-                        }
-                    }
-                } else {
-                    Log.e("BattleShipError", "Game object is null.")
-                }
-            } else {
+            if (!document.exists()) {
                 Log.e("BattleShipError", "Game document not found in Firestore.")
+                return@addOnSuccessListener
             }
+
+            val game = document.toObject(Game::class.java)
+            if (game == null) {
+                Log.e("BattleShipError", "Game object is null.")
+                return@addOnSuccessListener
+            }
+
+            val updatedFields = mutableMapOf<String, Any>()
+
+            when (localPlayerId) {
+                game.playerId1 -> {
+                    val updatedGameBoard1 = game.gameBoard1.toMutableList()
+                    shipCoordinates.forEach { index ->
+                        updatedGameBoard1[index] = 1 // ✅ Corrected indexing
+                    }
+                    updatedFields["gameBoard1"] = updatedGameBoard1
+                    Log.i("BattleShipInfo", "Updating Player 1's game board.")
+                }
+
+                game.playerId2 -> {
+                    val updatedGameBoard2 = game.gameBoard2.toMutableList()
+                    shipCoordinates.forEach { index ->
+                        updatedGameBoard2[index] = 1 // ✅ Corrected indexing
+                    }
+                    updatedFields["gameBoard2"] = updatedGameBoard2
+                    Log.i("BattleShipInfo", "Updating Player 2's game board.")
+                }
+
+                else -> {
+                    Log.e("BattleShipError", "Local player ID does not match any player in the game.")
+                    return@addOnSuccessListener
+                }
+            }
+
+            // ✅ Push the updates to Firestore
+            gameRef.update(updatedFields)
+                .addOnSuccessListener {
+                    Log.i("BattleShipInfo", "Game board updated successfully.")
+                }
+                .addOnFailureListener { e ->
+                    Log.e("BattleShipError", "Failed to update game board: $e")
+                }
         }
         .addOnFailureListener { e ->
             Log.e("BattleShipError", "Failed to fetch game document: $e")
         }
 }
+
+
+private operator fun MutableList<Int>.set(index: Pair<Int, Int>, value: Int) {
+    val (row, col) = index
+    val rowSize = 10 // Assuming 10x10 board
+    val linearIndex = row * rowSize + col
+    this[linearIndex] = value
+}
+
