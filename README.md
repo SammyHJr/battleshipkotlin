@@ -2,7 +2,7 @@
 
 **The project is still a work inprogress and will get updated with time. 
 
-A real-time multiplayer **Battleship game** built using **Kotlin**, **Jetpack Compose**, and **Firebase Realtime Database**. Players can connect across two devices and compete in turn-based gameplay. Game is not Deployed and is just simply used for Educational purposes. 
+A real-time multiplayer **Battleship game** built using **Kotlin**, **Jetpack Compose**, and **Firebase Realtime Database**. Players can connect across two devices and compete in turn-based gameplay. Game is not Deployed and is just used for educational purposes. 
 
 ## 🎯 Features
 - **Multiplayer gameplay** over Firebase
