@@ -6,7 +6,7 @@ A real-time multiplayer **Battleship game** built using **Kotlin**, **Jetpack Co
 
 ## 🎯 Features
 - **Multiplayer gameplay** over Firebase
-- **Drag-and-drop ship placement**
+- **Ships are placed by picking where the first/last point of the ship is and then it will be drawn out. Ships cannot be placed diagonally**
 - **Turn-based attack system**
 - **Real-time synchronization**
 
