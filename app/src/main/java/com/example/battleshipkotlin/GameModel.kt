@@ -1,15 +1,11 @@
 package com.example.battleshipkotlin
 
 import android.util.Log
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.flow.MutableStateFlow
-import androidx.compose.runtime.*
-import com.google.firebase.firestore.toObject
-
 
 
 data class Player(
@@ -32,22 +28,22 @@ data class Game(
 const val rows = 10;
 const val cols = 10;
 
-class GameModel: ViewModel(){
+class GameModel : ViewModel() {
     val db = Firebase.firestore
     var localPlayerId = mutableStateOf<String?>(null)
     val playerMap = MutableStateFlow<Map<String, Player>>(emptyMap())
     val gameMap = MutableStateFlow<Map<String, Game>>(emptyMap())
 
-    fun initGame(){
+    fun initGame() {
         //listen for players
         db.collection("players")
-            .addSnapshotListener{ value, error ->
-                if(error != null){
+            .addSnapshotListener { value, error ->
+                if (error != null) {
                     return@addSnapshotListener
                 }
-                if(value != null){
+                if (value != null) {
                     val updatedMap = value.documents.associate { doc ->
-                        doc.id to doc.toObject(Player:: class.java)!!
+                        doc.id to doc.toObject(Player::class.java)!!
                     }
                     playerMap.value = updatedMap
                 }
@@ -55,11 +51,11 @@ class GameModel: ViewModel(){
 
         //listen for games
         db.collection("games")
-            .addSnapshotListener{ value, error ->
-                if(error != null){
+            .addSnapshotListener { value, error ->
+                if (error != null) {
                     return@addSnapshotListener
                 }
-                if(value != null){
+                if (value != null) {
                     val updatedMap = value.documents.associate { doc ->
                         doc.id to doc.toObject(Game::class.java)!!
                     }
@@ -68,8 +64,10 @@ class GameModel: ViewModel(){
             }
 
         fun checkWinner(game: Game): Int? {
-            val player1ShipsLeft = game.gameBoard1.count { it == 1 } // Count ships on Player 1's board
-            val player2ShipsLeft = game.gameBoard2.count { it == 1 } // Count ships on Player 2's board
+            val player1ShipsLeft =
+                game.gameBoard1.count { it == 1 } // Count ships on Player 1's board
+            val player2ShipsLeft =
+                game.gameBoard2.count { it == 1 } // Count ships on Player 2's board
 
             return when {
                 player1ShipsLeft == 0 -> 2  // Player 2 wins
@@ -77,8 +75,6 @@ class GameModel: ViewModel(){
                 else -> null  // No winner yet
             }
         }
-
-
 
         fun checkGameState(gameId: String?, cell: Int) {
             if (gameId == null) return
@@ -94,7 +90,8 @@ class GameModel: ViewModel(){
                 if (!myTurn) return
 
                 // Determine the board to update (Player 1 attacks Player 2's board and vice versa)
-                val opponentBoard = if (isPlayer1) game.gameBoard2.toMutableList() else game.gameBoard1.toMutableList()
+                val opponentBoard =
+                    if (isPlayer1) game.gameBoard2.toMutableList() else game.gameBoard1.toMutableList()
 
                 // Check what is currently in the cell
                 when (opponentBoard[cell]) {
@@ -135,8 +132,6 @@ class GameModel: ViewModel(){
                     }
             }
         }
-
-
     }
 
     fun setPlayerReady(gameId: String, playerId: String) {
@@ -144,7 +139,8 @@ class GameModel: ViewModel(){
 
         Firebase.firestore.runTransaction { transaction ->
             val gameSnapshot = transaction.get(gameRef)
-            val readyPlayers = gameSnapshot.get("readyPlayers") as? MutableList<String> ?: mutableListOf()
+            val readyPlayers =
+                gameSnapshot.get("readyPlayers") as? MutableList<String> ?: mutableListOf()
 
             Log.d("BattleShipDebug", "Ready Players Before Update: $readyPlayers")
 
@@ -167,6 +163,7 @@ class GameModel: ViewModel(){
             Log.e("BattleShipError", "Failed to update readiness: ", e)
         }
     }
+
     fun refreshGameState(gameId: String) {
         val gameRef = Firebase.firestore.collection("games").document(gameId)
 
@@ -183,13 +180,9 @@ class GameModel: ViewModel(){
                     }
                 }
             }
-            .addOnFailureListener { e ->
-                Log.e("BattleShipError", "Failed to refresh game state: ", e)
-            }
+        .addOnFailureListener { e ->
+            Log.e("BattleShipError", "Failed to refresh game state: ", e)
+        }
     }
-
-
-
-
 
 }

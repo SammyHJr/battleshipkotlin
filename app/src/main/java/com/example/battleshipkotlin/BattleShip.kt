@@ -3,33 +3,43 @@ package com.example.battleshipkotlin
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.materialIcon
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.focusModifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -40,18 +50,17 @@ import androidx.navigation.compose.rememberNavController
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.firestore
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 
 @Composable
-fun BattleShip(){
+fun BattleShip() {
     val navController = rememberNavController()
     val model = GameModel()
     model.initGame()
     Log.i("BattleShipInfo", "In battleship()")
-    NavHost(navController = navController, startDestination = "Player"){
-        composable("player") {NewPlayerScreen(navController, model)}
+    NavHost(navController = navController, startDestination = "Player") {
+        composable("player") { NewPlayerScreen(navController, model) }
         composable("lobby") { LobbyScreen(navController, model) }
         composable("game/{gameId}") { navBackStackEntry ->
             val gameId = navBackStackEntry.arguments?.getString("gameId")
@@ -118,7 +127,6 @@ fun NewPlayerScreen(navController: NavController, model: GameModel) {
             )
 
             val context = LocalContext.current
-
             Button(
                 onClick = {
                     if (playerName.isNotBlank()) {
@@ -131,18 +139,26 @@ fun NewPlayerScreen(navController: NavController, model: GameModel) {
                                     val existingPlayer = querySnapshot.documents[0]
                                     val existingPlayerId = existingPlayer.id
 
-                                    existingPlayer.reference.update("isOnline", true)
+                                    existingPlayer.reference.update("isOnline", true) // changees the status of the player from being offline to online as soon as the players name is entered
                                         .addOnSuccessListener {
-                                            sharedPreference.edit().putString("playerId", existingPlayerId).apply()
+                                            sharedPreference.edit()
+                                                .putString("playerId", existingPlayerId).apply()
                                             model.localPlayerId.value = existingPlayerId
 
                                             // ✅ Show "Welcome Back" message
-                                            Toast.makeText(context, "Welcome back, $playerName!", Toast.LENGTH_LONG).show()
+                                            Toast.makeText(
+                                                context,
+                                                "Welcome back, $playerName!",
+                                                Toast.LENGTH_LONG
+                                            ).show()
 
                                             navController.navigate("Lobby")
                                         }
                                         .addOnFailureListener { error ->
-                                            Log.e("BattleShipError", "Error updating player status: ${error.message}")
+                                            Log.e(
+                                                "BattleShipError",
+                                                "Error updating player status: ${error.message}"
+                                            )
                                         }
                                 } else {
                                     // ✅ Player does not exist, create new
@@ -151,26 +167,37 @@ fun NewPlayerScreen(navController: NavController, model: GameModel) {
                                         "isOnline" to true
                                     )
 
-                                    model.db.collection("players")
+                                    model.db.collection("players")      // in the players Collection it will add new players
                                         .add(newPlayerData)
                                         .addOnSuccessListener { documentRef ->
-                                            val newPlayerId = documentRef.id
+                                            val newPlayerId = documentRef.id        // gives the player a ID
 
-                                            sharedPreference.edit().putString("playerId", newPlayerId).apply()
-                                            model.localPlayerId.value = newPlayerId
+                                            sharedPreference.edit()
+                                                .putString("playerId", newPlayerId).apply()
+                                            model.localPlayerId.value = newPlayerId     // local player will get the value of the documentId
 
                                             // ✅ Show "New Player Created" message
-                                            Toast.makeText(context, "New player created: $playerName!", Toast.LENGTH_LONG).show()
+                                            Toast.makeText(
+                                                context,
+                                                "New player created: $playerName!",
+                                                Toast.LENGTH_LONG
+                                            ).show()
 
                                             navController.navigate("Lobby")
                                         }
                                         .addOnFailureListener { error ->
-                                            Log.e("BattleShipError", "Error creating player: ${error.message}")
+                                            Log.e(
+                                                "BattleShipError",
+                                                "Error creating player: ${error.message}"
+                                            )
                                         }
                                 }
                             }
                             .addOnFailureListener { error ->
-                                Log.e("BattleShipError", "Error checking for existing player: ${error.message}")
+                                Log.e(
+                                    "BattleShipError",
+                                    "Error checking for existing player: ${error.message}"
+                                )
                             }
                     }
                 },
@@ -202,18 +229,18 @@ fun LobbyScreen(navController: NavController, model: GameModel) {
     var challengerName by remember { mutableStateOf("") }
     var challengeGameId by remember { mutableStateOf("") }
 
-    // 👇 LISTEN FOR CHALLENGES
+    // LISTEN FOR CHALLENGES
     LaunchedEffect(Unit) {
-        model.db.collection("games")
+        model.db.collection("games")            // store challanges in the games collection so we are taking players from the players collection and adding them to the games collection
             .whereEqualTo("playerId2", model.localPlayerId.value)
-            .whereEqualTo("gameState", "invite")
+            .whereEqualTo("gameState", "invite")            //changes the game state to invite
             .addSnapshotListener { snapshot, _ ->
                 snapshot?.documents?.firstOrNull()?.let { doc ->
                     val player1Id = doc.getString("playerId1")
                     val gameId = doc.id
 
                     if (player1Id != null) {
-                        model.db.collection("players").document(player1Id).get()
+                        model.db.collection("players").document(player1Id).get() // if the player1 is null theen it should get tfrom the players collection
                             .addOnSuccessListener { playerDoc ->
                                 challengerName = playerDoc.getString("name") ?: "Unknown Player"
                                 challengeGameId = gameId
@@ -282,7 +309,7 @@ fun LobbyScreen(navController: NavController, model: GameModel) {
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("BattleShip - $playerName") }) }
+        topBar = { TopAppBar(title = { Text("BattleShip - $playerName") }) }            //present the top app bar and the localplayers name should show nex to the title
     ) { innerPadding ->
         LazyColumn(modifier = Modifier.padding(innerPadding)) {
             items(onlinePlayers) { player ->
@@ -306,27 +333,39 @@ fun LobbyScreen(navController: NavController, model: GameModel) {
                             if (!hasGame) {
                                 Button(onClick = {
                                     model.db.collection("players")
-                                        .whereEqualTo("name", player.name) // Find the player by name
+                                        .whereEqualTo(
+                                            "name",
+                                            player.name
+                                        ) // Find the player by name
                                         .get()
                                         .addOnSuccessListener { querySnapshot ->
-                                            val player2Id = querySnapshot.documents.firstOrNull()?.id // Get the document ID
+                                            val player2Id =
+                                                querySnapshot.documents.firstOrNull()?.id // Get the document ID
                                             if (player2Id != null) {
-                                                model.db.collection("games").add(Game(
-                                                    gameState = "invite",
-                                                    playerId1 = model.localPlayerId.value!!, // The challenging player
-                                                    playerId2 = player2Id // The challenged player's ID
-                                                )).addOnSuccessListener { documentRef ->
+                                                model.db.collection("games").add(
+                                                    Game(
+                                                        gameState = "invite",
+                                                        playerId1 = model.localPlayerId.value!!, // The challenging player
+                                                        playerId2 = player2Id // The challenged player's ID
+                                                    )
+                                                ).addOnSuccessListener { documentRef ->
                                                     navController.navigate("game/${documentRef.id}") // Navigate to game screen
 
                                                 }.addOnFailureListener {
-                                                    Log.e("BattleShipError", "Error creating challenge")
+                                                    Log.e(
+                                                        "BattleShipError",
+                                                        "Error creating challenge"
+                                                    )
                                                 }
                                             } else {
                                                 Log.e("BattleShipError", "Player2 ID not found")
                                             }
                                         }
                                         .addOnFailureListener { exception ->
-                                            Log.e("BattleShipError", "Error fetching Player2 ID: ${exception.message}")
+                                            Log.e(
+                                                "BattleShipError",
+                                                "Error fetching Player2 ID: ${exception.message}"
+                                            )
                                         }
                                 }) {
                                     Text("Challenge")
@@ -341,7 +380,6 @@ fun LobbyScreen(navController: NavController, model: GameModel) {
 }
 
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GameScreen(navController: NavController, model: GameModel, gameId: String?) {
@@ -349,14 +387,13 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
     val games by model.gameMap.asStateFlow().collectAsStateWithLifecycle()
 
     var playerGameBoard by remember { mutableStateOf(MutableList(100) { 'W' }) }  // Player's board
-    var opponentGameBoard by remember { mutableStateOf(MutableList(100) { 'W' }) } // Opponent's board
     var firstClickIndex by remember { mutableStateOf(-1) }  // Track start of ship placement
     var placingShip by remember { mutableStateOf(true) }
     var readyToBattle by remember { mutableStateOf(false) } // State for the "Ready" button
 
     val playerName = players[model.localPlayerId.value]?.name ?: "Unknown"
 
-    // Ordered ship queue for placement
+    // Ordered ship queue for placement, ships with size
     val shipQueue = remember {
         mutableStateListOf(
             "Carrier" to 4,
@@ -386,23 +423,29 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
         val isPlayerTurn = (game.gameState == "player1_turn" && isPlayer1) ||
                 (game.gameState == "player2_turn" && !isPlayer1)
 
-        Log.d("BattleShipDebug", "Game state: ${game.gameState}, isPlayer1: $isPlayer1, isPlayerTurn: $isPlayerTurn")
+        Log.d(
+            "BattleShipDebug",
+            "Game state: ${game.gameState}, isPlayer1: $isPlayer1, isPlayerTurn: $isPlayerTurn"
+        )
 
         if (!isPlayerTurn) {
             Log.e("BattleShipError", "Not your turn!")
             return
         }
 
-        val gameRef = Firebase.firestore.collection("games").document(gameId)
+        val gameRef = Firebase.firestore.collection("games").document(gameId) // everything will be logged in the games collection
 
-        Firebase.firestore.runTransaction { transaction ->
+        Firebase.firestore.runTransaction { transaction ->                              // transactions take care of multiple read and write at the same time.
             Log.d("BattleShipDebug", "Starting transaction for index $index")
 
             val gameSnapshot = transaction.get(gameRef)
 
             // Determine which board to target
             val targetBoardField = if (isPlayer1) "gameBoard2" else "gameBoard1"
-            val targetBoard = (gameSnapshot.get(targetBoardField) as? List<Int>)?.toMutableList() ?: MutableList(100) { 0 }
+            val targetBoard =
+                (gameSnapshot.get(targetBoardField) as? List<Int>)?.toMutableList() ?: MutableList(
+                    100
+                ) { 0 }
 
             Log.d("BattleShipDebug", "Target board before shot: $targetBoard")
 
@@ -422,7 +465,7 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
             }
 
             // Check if all ships are sunk
-            val allShipsSunk = targetBoard.none { it == 1 }
+            val allShipsSunk = targetBoard.none { it == 1 } // when all ships are sunken then game over
             val nextGameState = when {
                 allShipsSunk -> if (isPlayer1) "Player 1 sank all BATTLESHIPS" else "Player 2 sank all BATTLESHIPS"
                 else -> if (isPlayer1) "player2_turn" else "player1_turn"
@@ -441,7 +484,14 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
     }
 
     // Function to check if there's at least one 'W' between ships
-    fun isAdjacentToAnotherShip(playerGameBoard: MutableList<Char>, rowSize: Int, startRow: Int, startCol: Int, endRow: Int, endCol: Int): Boolean {
+    fun isAdjacentToAnotherShip(
+        playerGameBoard: MutableList<Char>,
+        rowSize: Int,
+        startRow: Int,
+        startCol: Int,
+        endRow: Int,
+        endCol: Int
+    ): Boolean {
         val directions = arrayOf(
             -1 to 0, 1 to 0, 0 to -1, 0 to 1,  // Vertical and Horizontal
             -1 to -1, -1 to 1, 1 to -1, 1 to 1 // Diagonal directions
@@ -466,7 +516,12 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
     }
 
     // Function to place a ship
-    fun placeShip(playerGameBoard: MutableList<Char>, firstClickIndex: Int, index: Int, shipSize: Int): Boolean {
+    fun placeShip(
+        playerGameBoard: MutableList<Char>,
+        firstClickIndex: Int,
+        index: Int,
+        shipSize: Int
+    ): Boolean {
         val rowSize = 10 // 10x10 grid
 
         val startRow = firstClickIndex / rowSize
@@ -484,7 +539,15 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
                 if (playerGameBoard[startRow * rowSize + col] == 'S') return false
             }
 
-            if (isAdjacentToAnotherShip(playerGameBoard, rowSize, startRow, minCol, startRow, maxCol)) {
+            if (isAdjacentToAnotherShip(
+                    playerGameBoard,
+                    rowSize,
+                    startRow,
+                    minCol,
+                    startRow,
+                    maxCol
+                )
+            ) {
                 return false
             }
 
@@ -502,7 +565,15 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
                 if (playerGameBoard[row * rowSize + startCol] == 'S') return false
             }
 
-            if (isAdjacentToAnotherShip(playerGameBoard, rowSize, minRow, startCol, maxRow, startCol)) {
+            if (isAdjacentToAnotherShip(
+                    playerGameBoard,
+                    rowSize,
+                    minRow,
+                    startCol,
+                    maxRow,
+                    startCol
+                )
+            ) {
                 return false
             }
 
@@ -562,8 +633,14 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
                 verticalArrangement = Arrangement.Top,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("Player 1: ${players[game.playerId1]?.name ?: "Unknown"}", style = MaterialTheme.typography.bodyLarge)
-                Text("Player 2: ${players[game.playerId2]?.name ?: "Unknown"}", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    "Player 1: ${players[game.playerId1]?.name ?: "Unknown"}",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Text(
+                    "Player 2: ${players[game.playerId2]?.name ?: "Unknown"}",
+                    style = MaterialTheme.typography.bodyLarge
+                )
                 Text("State: ${game.gameState}", style = MaterialTheme.typography.bodyLarge)
                 Text("Game ID: $gameId", style = MaterialTheme.typography.bodyLarge)
 
@@ -593,19 +670,29 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
                         // 🔹 Ensure turnText updates when gameState changes
                         LaunchedEffect(game.gameState) {
                             turnText = if (myTurn) "Your Turn" else "Waiting for Opponent"
-                            Log.d("BattleShipDebug", "Turn updated: $turnText (gameState = ${game.gameState})")
+                            Log.d(
+                                "BattleShipDebug",
+                                "Turn updated: $turnText (gameState = ${game.gameState})"
+                            )
                         }
 
                         Text(turnText, style = MaterialTheme.typography.headlineSmall)
                         Spacer(modifier = Modifier.height(20.dp))
 
                         if (placingShip) {
-                            val (currentShip, size) = shipQueue.firstOrNull() ?: "All ships placed" to 0
-                            Text("Placing: $currentShip - Size: $size", style = MaterialTheme.typography.bodyLarge)
+                            val (currentShip, size) = shipQueue.firstOrNull()
+                                ?: "All ships placed" to 0
+                            Text(
+                                "Placing: $currentShip - Size: $size",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
                             Spacer(modifier = Modifier.height(10.dp))
 
                             Text("Your Board", style = MaterialTheme.typography.headlineMedium)
-                            GameBoardGrid(gameBoard = playerGameBoard, isOpponentBoard = false, onCellClick = { index -> placeShips(index) })
+                            GameBoardGrid(
+                                gameBoard = playerGameBoard,
+                                isOpponentBoard = false,
+                                onCellClick = { index -> placeShips(index) })
 
                             Spacer(modifier = Modifier.height(20.dp))
 
@@ -615,7 +702,10 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
 
                             Spacer(modifier = Modifier.height(20.dp))
 
-                            Text("Opponent's Board", style = MaterialTheme.typography.headlineMedium)
+                            Text(
+                                "Opponent's Board",
+                                style = MaterialTheme.typography.headlineMedium
+                            )
                             GameBoardGrid(
                                 gameBoard = if (model.localPlayerId.value == game.playerId1)
                                     game.gameBoard2.map { it.toChar() } // Convert Int to Char
@@ -642,7 +732,6 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
         navController.navigate("lobby")
     }
 }
-
 
 
 @Composable
@@ -695,8 +784,11 @@ fun updatePlayerStatus(playerId: String, status: String) {
 }
 
 // Function to store ship coordinates in the Firebase database
-// Function to store ship coordinates in the Firebase database
-fun saveShipCoordinatesToDatabase(gameId: String, localPlayerId: String, playerGameBoard: MutableList<Char>) {
+fun saveShipCoordinatesToDatabase(
+    gameId: String,
+    localPlayerId: String,
+    playerGameBoard: MutableList<Char>
+) {
     val shipCoordinates = mutableListOf<Int>()
 
     // ✅ Collect the correct indices where ships are placed
@@ -746,7 +838,10 @@ fun saveShipCoordinatesToDatabase(gameId: String, localPlayerId: String, playerG
                 }
 
                 else -> {
-                    Log.e("BattleShipError", "Local player ID does not match any player in the game.")
+                    Log.e(
+                        "BattleShipError",
+                        "Local player ID does not match any player in the game."
+                    )
                     return@addOnSuccessListener
                 }
             }
