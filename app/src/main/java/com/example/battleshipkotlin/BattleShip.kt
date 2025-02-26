@@ -597,7 +597,7 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
                 // Mark the player as "ready"
                 model.setPlayerReady(gameId, model.localPlayerId.value!!)
             }
-            return
+            return // once all the ships are placed then it should exit the code
         }
 
         val (currentShip, size) = shipQueue.first()
@@ -619,10 +619,10 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
     }
 
 
-    if (gameId != null && games.containsKey(gameId)) {
-        val game = games[gameId]!!
+    if (gameId != null && games.containsKey(gameId)) { // ensure valid game id
+        val game = games[gameId]!!                      // ensure that game exist in game collection
 
-        LaunchedEffect(game.gameState) {
+        LaunchedEffect(game.gameState) {                // fetches game object when the gamestate chances then rerun
             model.refreshGameState(gameId!!)
         }
 
@@ -663,13 +663,13 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
                     else -> {
                         val myTurn =
                             (game.gameState == "player1_turn" && game.playerId1 == model.localPlayerId.value) ||
-                                    (game.gameState == "player2_turn" && game.playerId2 == model.localPlayerId.value)
+                                    (game.gameState == "player2_turn" && game.playerId2 == model.localPlayerId.value) // either player 1 turn or player 2 turn
 
                         var turnText by remember { mutableStateOf("Waiting for Opponent") }
 
                         // 🔹 Ensure turnText updates when gameState changes
                         LaunchedEffect(game.gameState) {
-                            turnText = if (myTurn) "Your Turn" else "Waiting for Opponent"
+                            turnText = if (myTurn) "Your Turn" else "Waiting for Opponent" // switch depening if it is your turn or not
                             Log.d(
                                 "BattleShipDebug",
                                 "Turn updated: $turnText (gameState = ${game.gameState})"
@@ -679,7 +679,7 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
                         Text(turnText, style = MaterialTheme.typography.headlineSmall)
                         Spacer(modifier = Modifier.height(20.dp))
 
-                        if (placingShip) {
+                        if (placingShip) {              // place ships
                             val (currentShip, size) = shipQueue.firstOrNull()
                                 ?: "All ships placed" to 0
                             Text(
@@ -708,7 +708,7 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
                             )
                             GameBoardGrid(
                                 gameBoard = if (model.localPlayerId.value == game.playerId1)
-                                    game.gameBoard2.map { it.toChar() } // Convert Int to Char
+                                    game.gameBoard2.map { it.toChar() } // Convert Int to Char CONVERTS THE H to 72 becasue of Mutable list issue
                                 else
                                     game.gameBoard1.map { it.toChar() }, // Convert Int to Char
                                 isOpponentBoard = true
