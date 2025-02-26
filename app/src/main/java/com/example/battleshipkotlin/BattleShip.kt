@@ -551,6 +551,11 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
     if (gameId != null && games.containsKey(gameId)) {
         val game = games[gameId]!!
 
+        LaunchedEffect(game.gameState) {
+            model.refreshGameState(gameId!!)
+        }
+
+
         Scaffold(topBar = { TopAppBar(title = { Text("BattleShip - $playerName") }) }) { innerPadding ->
             Column(
                 modifier = Modifier.padding(innerPadding).fillMaxSize(),
@@ -605,9 +610,22 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
                             Spacer(modifier = Modifier.height(20.dp))
 
                             Text("Opponent's Board", style = MaterialTheme.typography.headlineMedium)
-                            GameBoardGrid(gameBoard = opponentGameBoard, isOpponentBoard = true) { index ->
-                                takeShot(index)
+                            GameBoardGrid(
+                                gameBoard = if (model.localPlayerId.value == game.playerId1)
+                                    game.gameBoard2.map { it.toChar() } // Convert Int to Char
+                                else
+                                    game.gameBoard1.map { it.toChar() }, // Convert Int to Char
+                                isOpponentBoard = true
+                            ) { index ->
+                                if ((game.gameState == "player1_turn" && model.localPlayerId.value == game.playerId1) ||
+                                    (game.gameState == "player2_turn" && model.localPlayerId.value == game.playerId2)
+                                ) {
+                                    takeShot(index)  // ✅ Only allow shooting if it's the player's turn
+                                } else {
+                                    Log.e("BattleShipError", "Not your turn!")
+                                }
                             }
+
                         }
                     }
                 }
@@ -643,7 +661,8 @@ fun GameBoardGrid(
                                     'W' -> Color.LightGray   // Water
                                     'S' -> if (isOpponentBoard) Color.LightGray else Color.Black  // Hide ships from opponent
                                     'H' -> Color.Red         // Hit
-                                    else -> Color.DarkGray
+                                    'M' -> Color.Cyan
+                                    else -> Color.Gray
                                 }
                             )
                             .clickable {

@@ -140,13 +140,15 @@ class GameModel: ViewModel(){
     }
 
     fun setPlayerReady(gameId: String, playerId: String) {
-        val gameRef = db.collection("games").document(gameId)
+        val gameRef = Firebase.firestore.collection("games").document(gameId)
 
         Firebase.firestore.runTransaction { transaction ->
             val gameSnapshot = transaction.get(gameRef)
             val readyPlayers = gameSnapshot.get("readyPlayers") as? MutableList<String> ?: mutableListOf()
 
-            if (playerId in readyPlayers) return@runTransaction // Avoid duplicate entries
+            Log.d("BattleShipDebug", "Ready Players Before Update: $readyPlayers")
+
+            if (playerId in readyPlayers) return@runTransaction // Already ready
 
             readyPlayers.add(playerId)
             transaction.update(gameRef, "readyPlayers", readyPlayers)
@@ -154,17 +156,39 @@ class GameModel: ViewModel(){
             val playerId1 = gameSnapshot.getString("playerId1") ?: ""
             val playerId2 = gameSnapshot.getString("playerId2") ?: ""
 
-            // ✅ **Check if both players are ready → Set gameState to player1_turn**
+            // ✅ Ensure game starts when both players are ready
             if (readyPlayers.containsAll(listOf(playerId1, playerId2))) {
-                Log.d("BattleShipDebug", "Both players are ready, setting gameState to player1_turn")
                 transaction.update(gameRef, "gameState", "player1_turn")
+                Log.d("BattleShipDebug", "Both players ready! Game starting with player1_turn.")
             }
         }.addOnSuccessListener {
-            Log.d("BattleShipDebug", "Player $playerId is ready. Game updated.")
+            Log.d("BattleShipInfo", "Player $playerId is ready. Game updated.")
         }.addOnFailureListener { e ->
             Log.e("BattleShipError", "Failed to update readiness: ", e)
         }
     }
+    fun refreshGameState(gameId: String) {
+        val gameRef = Firebase.firestore.collection("games").document(gameId)
+
+        gameRef.get()
+            .addOnSuccessListener { document ->
+                if (document.exists()) {
+                    val updatedGame = document.toObject(Game::class.java)
+                    updatedGame?.let {
+                        val updatedGameMap = gameMap.value.toMutableMap()
+                        updatedGameMap[gameId] = it
+                        gameMap.value = updatedGameMap
+
+                        Log.d("BattleShipDebug", "Game state refreshed: ${it.gameState}")
+                    }
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("BattleShipError", "Failed to refresh game state: ", e)
+            }
+    }
+
+
 
 
 
