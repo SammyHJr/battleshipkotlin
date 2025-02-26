@@ -585,10 +585,16 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
 
                     else -> {
                         val myTurn =
-                            (game.gameState == "player 1 turn" && game.playerId1 == model.localPlayerId.value) ||
-                                    (game.gameState == "player 2 turn" && game.playerId2 == model.localPlayerId.value)
-                        val turnText = if (myTurn) "Your Turn" else "Waiting for Opponent"
+                            (game.gameState == "player1_turn" && game.playerId1 == model.localPlayerId.value) ||
+                                    (game.gameState == "player2_turn" && game.playerId2 == model.localPlayerId.value)
 
+                        var turnText by remember { mutableStateOf("Waiting for Opponent") }
+
+                        // 🔹 Ensure turnText updates when gameState changes
+                        LaunchedEffect(game.gameState) {
+                            turnText = if (myTurn) "Your Turn" else "Waiting for Opponent"
+                            Log.d("BattleShipDebug", "Turn updated: $turnText (gameState = ${game.gameState})")
+                        }
 
                         Text(turnText, style = MaterialTheme.typography.headlineSmall)
                         Spacer(modifier = Modifier.height(20.dp))
@@ -625,9 +631,9 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
                                     Log.e("BattleShipError", "Not your turn!")
                                 }
                             }
-
                         }
                     }
+
                 }
             }
         }
