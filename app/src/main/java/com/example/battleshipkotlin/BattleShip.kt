@@ -515,12 +515,12 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
         return false // No adjacent ships found
     }
 
-    // Function to place a ship
+    // Handles Placing ships on the board. Checking for valid placements
     fun placeShip(
         playerGameBoard: MutableList<Char>,
-        firstClickIndex: Int,
-        index: Int,
-        shipSize: Int
+        firstClickIndex: Int,                   // looks at where the player first pressed on the grid
+        index: Int,                             // looks at the last index
+        shipSize: Int                           // maps out according ot index
     ): Boolean {
         val rowSize = 10 // 10x10 grid
 
@@ -539,7 +539,7 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
                 if (playerGameBoard[startRow * rowSize + col] == 'S') return false
             }
 
-            if (isAdjacentToAnotherShip(
+            if (isAdjacentToAnotherShip(            // checks if its adjacent to another ship
                     playerGameBoard,
                     rowSize,
                     startRow,
@@ -592,7 +592,7 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
             readyToBattle = true // Show the "Ready" button
 
             if (gameId != null && model.localPlayerId.value != null) {
-                saveShipCoordinatesToDatabase(gameId, model.localPlayerId.value!!, playerGameBoard)
+                saveShipCoordinatesToDatabase(gameId, model.localPlayerId.value!!, playerGameBoard) // sends information to DB
 
                 // Mark the player as "ready"
                 model.setPlayerReady(gameId, model.localPlayerId.value!!)
@@ -617,7 +617,6 @@ fun GameScreen(navController: NavController, model: GameModel, gameId: String?) 
             }
         }
     }
-
 
     if (gameId != null && games.containsKey(gameId)) { // ensure valid game id
         val game = games[gameId]!!                      // ensure that game exist in game collection
