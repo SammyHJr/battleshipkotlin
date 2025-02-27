@@ -771,9 +771,9 @@ fun GameBoardGrid(
 }
 
 
-fun updatePlayerStatus(playerId: String, status: String) {
+fun updatePlayerStatus(playerId: String, status: String) {      //pass String "isOnline"
     val db = FirebaseFirestore.getInstance()
-    db.collection("players").document(playerId)
+    db.collection("players").document(playerId)     // in playerId updates the status to online
         .update("status", status)
         .addOnSuccessListener {
             Log.i("BattleShipInfo", "Player $playerId status updated to $status")
@@ -800,7 +800,7 @@ fun saveShipCoordinatesToDatabase(
 
     // ✅ Get Firebase reference
     val db = FirebaseFirestore.getInstance()
-    val gameRef = db.collection("games").document(gameId)
+    val gameRef = db.collection("games").document(gameId) // access the gameId and mutates the fields in that gameId
 
     // ✅ Fetch the game document
     gameRef.get()
@@ -822,9 +822,9 @@ fun saveShipCoordinatesToDatabase(
                 game.playerId1 -> {
                     val updatedGameBoard1 = game.gameBoard1.toMutableList()
                     shipCoordinates.forEach { index ->
-                        updatedGameBoard1[index] = 1 // ✅ Corrected indexing
+                        updatedGameBoard1[index] = 1 // ✅ Corrected indexing        // ship will be shown as 1 in the 1D  gameboard
                     }
-                    updatedFields["gameBoard1"] = updatedGameBoard1
+                    updatedFields["gameBoard1"] = updatedGameBoard1                         // updatesGameBoard1 which is assigned to player 1
                     Log.i("BattleShipInfo", "Updating Player 1's game board.")
                 }
 
@@ -833,7 +833,7 @@ fun saveShipCoordinatesToDatabase(
                     shipCoordinates.forEach { index ->
                         updatedGameBoard2[index] = 1 // ✅ Corrected indexing
                     }
-                    updatedFields["gameBoard2"] = updatedGameBoard2
+                    updatedFields["gameBoard2"] = updatedGameBoard2                 // updates gameBoard2 which is assign to the second player
                     Log.i("BattleShipInfo", "Updating Player 2's game board.")
                 }
 
