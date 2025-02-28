@@ -860,10 +860,3 @@ fun saveShipCoordinatesToDatabase(
 }
 
 
-private operator fun MutableList<Int>.set(index: Pair<Int, Int>, value: Int) {
-    val (row, col) = index
-    val rowSize = 10 // Assuming 10x10 board
-    val linearIndex = row * rowSize + col
-    this[linearIndex] = value
-}
-
